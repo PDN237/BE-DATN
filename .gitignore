@@ -1,0 +1,8 @@
+node_modules/
+.env
+.env.local
+config/speech-key.json
+services/Speech-to-Text.json
+logs/
+*.log
+.DS_Store
