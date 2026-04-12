@@ -3,7 +3,7 @@ const pool = require('../../db.js');
 const LessonController = {
   createLesson: async (req, res) => {
     try {
-      const { ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex } = req.body;
+      const { ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, Describe, Summary } = req.body;
       
       if (!ModuleID || !Title || !Type) {
         return res.status(400).json({ error: 'ModuleID, Title, and Type required' });
@@ -14,8 +14,8 @@ const LessonController = {
       }
       
       const result = await pool.query(
-        `INSERT INTO Lessons (ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `INSERT INTO Lessons (ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, "describe", "summary")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          RETURNING *`,
         [
           parseInt(ModuleID),
@@ -24,12 +24,14 @@ const LessonController = {
           ContentUrl || '',
           ContentHtml || '',
           parseInt(Duration || 0),
-          parseInt(OrderIndex || 0)
+          parseInt(OrderIndex || 0),
+          Describe || '',
+          Summary || ''
         ]
       );
       
       let l = result.rows[0];
-      l = l ? { ...l, LessonID: l.lessonid || l.LessonID, ModuleID: l.moduleid || l.ModuleID, Title: l.title || l.Title, Type: l.type || l.Type, ContentUrl: l.contenturl || l.ContentUrl, ContentHtml: l.contenthtml || l.ContentHtml, Duration: l.duration || l.Duration, OrderIndex: l.orderindex || l.OrderIndex } : null;
+      l = l ? { ...l, LessonID: l.lessonid || l.LessonID, ModuleID: l.moduleid || l.ModuleID, Title: l.title || l.Title, Type: l.type || l.Type, ContentUrl: l.contenturl || l.ContentUrl, ContentHtml: l.contenthtml || l.ContentHtml, Duration: l.duration || l.Duration, OrderIndex: l.orderindex || l.OrderIndex, Describe: l.describe || l.Describe || '', Summary: l.summary || l.Summary || '' } : null;
 
       res.status(201).json({
         success: true,
@@ -66,6 +68,8 @@ const LessonController = {
         Type: l.type || l.Type,
         ContentUrl: l.contenturl || l.ContentUrl,
         ContentHtml: l.contenthtml || l.ContentHtml,
+        Describe: l.describe || l.Describe || '',
+        Summary: l.summary || l.Summary || '',
         Duration: l.duration || l.Duration,
         OrderIndex: l.orderindex || l.OrderIndex,
         quizCount: parseInt(l.quizcount || l.quizCount || 0)
@@ -79,7 +83,7 @@ const LessonController = {
   updateLesson: async (req, res) => {
     try {
       const { id } = req.params;
-      const { Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex } = req.body;
+      const { Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, Describe, Summary } = req.body;
       
       if (!Title || !Type) {
         return res.status(400).json({ error: 'Title and Type required' });
@@ -101,7 +105,7 @@ const LessonController = {
       await pool.query(
         `UPDATE Lessons 
          SET Title = $2, Type = $3, ContentUrl = $4, ContentHtml = $5, 
-             Duration = $6, OrderIndex = $7
+             Duration = $6, OrderIndex = $7, "describe" = $8, "summary" = $9
          WHERE LessonID = $1`,
         [
           parseInt(id),
@@ -110,7 +114,9 @@ const LessonController = {
           ContentUrl || '',
           ContentHtml || '',
           parseInt(Duration || 0),
-          parseInt(OrderIndex || 0)
+          parseInt(OrderIndex || 0),
+          Describe || '',
+          Summary || ''
         ]
       );
       
@@ -143,6 +149,8 @@ const LessonController = {
         Type: l.type || l.Type,
         ContentUrl: l.contenturl || l.ContentUrl,
         ContentHtml: l.contenthtml || l.ContentHtml,
+        Describe: l.describe || l.Describe || '',
+        Summary: l.summary || l.Summary || '',
         Duration: l.duration || l.Duration,
         OrderIndex: l.orderindex || l.OrderIndex
       });

@@ -113,6 +113,8 @@ module.exports = {
           Title: lessonRow.Title || lessonRow.title,
           ContentHtml: lessonRow.ContentHtml || lessonRow.contenthtml,
           ContentUrl: lessonRow.ContentUrl || lessonRow.contenturl,
+          Describe: lessonRow.describe || lessonRow.Describe || '',
+          Summary: lessonRow.summary || lessonRow.Summary || '',
           ...lessonRow
         }
       }
@@ -135,56 +137,7 @@ module.exports = {
     }
   },
 
-  getTranscriptByLessonId: async (req, res) => {
-    try {
-      const { id } = req.params;
-      console.log(`🔍 Transcript request for lesson ${id}`);
-      
-      const lessonResult = await pool.query(
-        `SELECT l.*, c.Title as CourseTitle 
-         FROM Lessons l 
-         JOIN Modules m ON l.ModuleID = m.ModuleID 
-         JOIN Courses c ON m.CourseID = c.CourseID 
-         WHERE l.LessonID = $1`,
-        [parseInt(id)]
-      );
-      
-      let lesson = lessonResult.rows[0];
-      if (lesson) {
-        lesson = {
-          Type: lesson.Type || lesson.type,
-          Title: lesson.Title || lesson.title,
-          ContentHtml: lesson.ContentHtml || lesson.contenthtml,
-          ContentUrl: lesson.ContentUrl || lesson.contenturl,
-          ...lesson
-        }
-      }
 
-      console.log('📺 Lesson video URL:', lesson?.ContentUrl);
-      
-      if (!lesson || lesson.Type !== 'video' || !lesson.ContentUrl?.trim()) {
-        console.log('⏭️ Skipping transcript - no valid video');
-        return res.json({ 
-          raw: '', 
-          formatted: 'Transcript available only for video lessons with YouTube URL.' 
-        });
-      }
-      
-      console.log('🎤 Processing universal video:', lesson.ContentUrl);
-      
-      const { transcribeVideo } = require('../services/speech.service');
-      const transcript = await transcribeVideo(lesson.ContentUrl, lesson.Title);
-      
-      console.log('✅ Transcript generated successfully');
-      res.json(transcript);
-    } catch (error) {
-      console.error('❌ getTranscriptByLessonId error:', error.message);
-      res.status(500).json({ 
-        raw: '', 
-        formatted: `Transcript service error: ${error.message}` 
-      });
-    }
-  },
 
   getQuizByLessonId: async (req, res) => {
     try {

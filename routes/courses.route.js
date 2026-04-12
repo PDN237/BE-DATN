@@ -7,7 +7,6 @@ router.get('/courses', coursesController.getAllCourses);
 router.get('/courses/:id', coursesController.getCourseById);
 router.get('/courses/:id/modules-lessons', coursesController.getCourseModulesLessons);
 router.get('/lessons/:id', coursesController.getLessonById);
-router.get('/lessons/:id/transcript', coursesController.getTranscriptByLessonId);
 router.get('/quizzes/:lessonId', coursesController.getQuizByLessonId);
 
 // Lesson Progress APIs
