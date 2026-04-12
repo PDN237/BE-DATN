@@ -19,6 +19,10 @@ router.delete('/courses/:id', adminAuth.requireAdmin, courseController.deleteCou
 const dashboardController = require('../controllers/Admin/Dashboard');
 router.get('/dashboard/stats', adminAuth.requireAdmin, dashboardController.getStats);
 
+// AI Summary
+const aiSummaryController = require('../controllers/Admin/AISumary');
+router.post('/ai-summary', adminAuth.requireAdmin, aiSummaryController.generateSummary);
+
 // Modules
 router.post('/modules', adminAuth.requireAdmin, moduleController.createModule);
 router.get('/modules/:courseId', adminAuth.requireAdmin, moduleController.getModulesByCourse);
