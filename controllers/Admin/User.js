@@ -4,7 +4,7 @@ const adminAuth = require('../../middleware/admin.middleware');
 async function getAllUsers(req, res) {
   try {
     const query = `
-      SELECT UserID, FullName, Email, AvatarUrl, IsActive, CreatedAt, RoleID as Role
+      SELECT UserID, FullName, Email, AvatarUrl, IsActive, CreatedAt, RoleID as Role, Describe
       FROM USERS
       ORDER BY CreatedAt DESC
     `;
@@ -17,7 +17,8 @@ async function getAllUsers(req, res) {
       AvatarUrl: u.avatarurl || u.AvatarUrl,
       IsActive: u.isactive !== undefined ? u.isactive : u.IsActive,
       CreatedAt: u.createdat || u.CreatedAt,
-      Role: u.role || u.Role
+      Role: u.role || u.Role,
+      Describe: u.describe || u.Describe || ''
     })));
   } catch (error) {
     console.error('Get users error:', error);
@@ -48,7 +49,8 @@ async function getUserById(req, res) {
       AvatarUrl: u.avatarurl || u.AvatarUrl,
       IsActive: u.isactive !== undefined ? u.isactive : u.IsActive,
       CreatedAt: u.createdat || u.CreatedAt,
-      Role: u.role || u.Role
+      Role: u.role || u.Role,
+      Describe: u.describe || u.Describe || ''
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch user' });
@@ -92,7 +94,7 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { FullName, Email, PassWord, RoleID, IsActive } = req.body;
+    const { FullName, Email, PassWord, RoleID, IsActive, Describe } = req.body;
 
     let updates = ['UpdatedAt = NOW()'];
     const params = [];
@@ -121,6 +123,11 @@ async function updateUser(req, res) {
     if (IsActive !== undefined) {
       updates.push(`IsActive = $${paramIndex}`);
       params.push(IsActive ? true : false);
+      paramIndex++;
+    }
+    if (Describe !== undefined) {
+      updates.push(`Describe = $${paramIndex}`);
+      params.push(Describe);
       paramIndex++;
     }
 

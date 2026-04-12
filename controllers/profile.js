@@ -6,7 +6,7 @@ exports.getProfile = async (req, res) => {
         
         // 1. Get basic info
         const userQuery = `
-            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear 
+            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe
             FROM USERS 
             WHERE UserID = $1
         `;
@@ -24,7 +24,8 @@ exports.getProfile = async (req, res) => {
             Phone: userRaw.phone || userRaw.Phone,
             Location: userRaw.location || userRaw.Location,
             Gender: userRaw.gender || userRaw.Gender,
-            BirthYear: userRaw.birthyear || userRaw.BirthYear
+            BirthYear: userRaw.birthyear || userRaw.BirthYear,
+            Describe: userRaw.describe || userRaw.Describe || ''
         } : null;
 
         // 2. Get problems solved (Count and List)
@@ -110,7 +111,7 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { userId, FullName, Phone, Location, Gender, BirthYear } = req.body;
+        const { userId, FullName, Phone, Location, Gender, BirthYear, Describe } = req.body;
 
         if (!userId) {
             return res.status(400).json({ success: false, message: 'Missing userId' });
@@ -122,8 +123,9 @@ exports.updateProfile = async (req, res) => {
                 Phone = COALESCE($2, Phone),
                 Location = COALESCE($3, Location),
                 Gender = COALESCE($4, Gender),
-                BirthYear = COALESCE($5, BirthYear)
-            WHERE UserID = $6
+                BirthYear = COALESCE($5, BirthYear),
+                Describe = COALESCE($6, Describe)
+            WHERE UserID = $7
         `;
 
         await pool.query(updateQuery, [
@@ -132,6 +134,7 @@ exports.updateProfile = async (req, res) => {
             Location || null,
             Gender || null,
             BirthYear || null,
+            Describe !== undefined ? Describe : null,
             parseInt(userId)
         ]);
 
