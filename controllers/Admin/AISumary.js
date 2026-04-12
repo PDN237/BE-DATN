@@ -22,10 +22,14 @@ ${content}
 
 **Requirements:**
 1. The summary must be written in Vietnamese (Tiếng Việt) with a professional and technical tone.
-2. It should capture the most important technical concepts, methodologies, or objectives of the lesson.
-3. Keep it concise but highly valuable (about 3-5 sentences or a short paragraph).
-4. Do NOT use introductory or concluding conversational filler (like "Đây là bản tóm tắt...", "Hy vọng điều này giúp ích...").
-5. Return ONLY the summarized output text directly. No markdown formatting like \`\`\` or bold markers unless strictly necessary for code syntax.
+2. Formatted as BEAUTIFUL, structural HTML. You MUST use appropriate HTML tags (like <h3>, <ul>, <li>, <strong>, <em>, <p>, <blockquote>) to structure the summary nicely.
+3. The content should be comprehensive rather than extremely brief. It must include:
+   - A short introductory paragraph summarizing the main objective.
+   - Main points (Các mục chính) formatted as clear headings.
+   - Sub-points and critical technical details under each main point.
+   - Concrete examples (Ví dụ thực tế) or applications if they appear in the original text (or add relevant concise ones).
+4. Even though it is comprehensive, keep it focused and structured like an executive summary without unnecessary storytelling.
+5. Return ONLY the raw HTML string without any markdown wrappers (like \`\`\`html) around it.
 
 Summarize the input content based on the above rules:
 `;
@@ -39,6 +43,7 @@ Summarize the input content based on the above rules:
       });
 
       let aiText = response.choices[0].message.content.trim();
+      aiText = aiText.replace(/```(?:html)?\n?/i, "").replace(/```/g, "").trim();
 
       res.status(200).json({ summary: aiText });
 
