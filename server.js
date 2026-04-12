@@ -9,6 +9,7 @@ const submitRoute = require('./routes/submit.route');
 const coursesRoute = require('./routes/courses.route');
 const adminRoute = require('./routes/admin.route');
 const profileRoute = require('./routes/profile.route');
+const aiCoachRoute = require('./controllers/AICoach');
 
 const app = express();
 
@@ -25,8 +26,8 @@ app.use('/api/submit', submitRoute);
 app.use('/api/courses', coursesRoute);
 app.use('/api/admin', adminRoute);
 app.use('/api/profile', profileRoute);
+app.use('/api/aicoach', aiCoachRoute);
 
-// Serve index.html for root route
 
 
 const PORT = process.env.PORT || 3000;
