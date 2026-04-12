@@ -9,7 +9,7 @@ const LessonController = {
         return res.status(400).json({ error: 'ModuleID, Title, and Type required' });
       }
       
-      if (!['video', 'reading', 'quiz'].includes(Type)) {
+      if (!['video', 'reading'].includes(Type)) {
         return res.status(400).json({ error: 'Invalid lesson type' });
       }
       
@@ -89,7 +89,7 @@ const LessonController = {
         return res.status(400).json({ error: 'Title and Type required' });
       }
       
-      if (!['video', 'reading', 'quiz'].includes(Type)) {
+      if (!['video', 'reading'].includes(Type)) {
         return res.status(400).json({ error: 'Invalid lesson type' });
       }
       
