@@ -11,6 +11,7 @@ const adminRoute = require('./routes/admin.route');
 const profileRoute = require('./routes/profile.route');
 const aiCoachRoute = require('./controllers/AICoach');
 const instructorRoute = require('./routes/instructor.route');
+const informationRoute = require('./routes/information.route');
 
 const app = express();
 
@@ -29,6 +30,7 @@ app.use('/api/admin', adminRoute);
 app.use('/api/profile', profileRoute);
 app.use('/api/aicoach', aiCoachRoute);
 app.use('/api/instructor', instructorRoute);
+app.use('/api/information', informationRoute);
 
 
 
