@@ -3,7 +3,7 @@ const pool = require('../db');
 module.exports = {
   getAllCourses: async (req, res) => {
     try {
-      const result = await pool.query('SELECT CourseID, Title, Description, Level, Thumbnail, CreatedAt FROM Courses ORDER BY CreatedAt DESC');
+      const result = await pool.query('SELECT CourseID, Title, Description, Level, Thumbnail, CreatedAt FROM Courses WHERE iscompleted = true ORDER BY CreatedAt DESC');
       const mapped = result.rows.map(row => ({
           CourseID: row.courseid || row.CourseID,
           Title: row.title || row.Title,
