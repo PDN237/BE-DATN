@@ -10,11 +10,8 @@ const getAllProblems = async (req, res) => {
       SELECT 
          id,
         title,
-        description,
         difficulty,
-        time_limit,
-        hints,
-        examples`;
+        time_limit`;
         
     if (userId) {
       queryParams.push(userId);
