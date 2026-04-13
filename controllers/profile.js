@@ -154,31 +154,34 @@ exports.updateProfile = async (req, res) => {
 exports.getMyCourses = async (req, res) => {
     try {
         const userId = parseInt(req.query.userId) || 1;
+        console.log(`📚 getMyCourses: userId=${userId}`);
 
         const result = await pool.query(
-            `SELECT c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.IsCompleted,
-                    (SELECT COUNT(*) FROM Modules m WHERE m.CourseID = c.CourseID) as modulecount
+            `SELECT c.courseid, c.title, c.description, c.level, c.thumbnail, c.createdat, c.iscompleted,
+                    (SELECT COUNT(*) FROM Modules m WHERE m.CourseID = c.courseid) as modulecount
              FROM Courses c
              WHERE c.userid = $1
-             ORDER BY c.CreatedAt DESC`,
+             ORDER BY c.createdat DESC`,
             [userId]
         );
 
+        console.log(`✅ getMyCourses: found ${result.rows.length} courses`);
+
         const courses = (result.rows || []).map(row => ({
-            CourseID: row.courseid || row.CourseID,
-            Title: row.title || row.Title,
-            Description: row.description || row.Description,
-            Level: row.level || row.Level,
-            Thumbnail: row.thumbnail || row.Thumbnail,
-            CreatedAt: row.createdat || row.CreatedAt,
-            IsCompleted: row.iscompleted || row.IsCompleted || false,
+            CourseID: row.courseid,
+            Title: row.title,
+            Description: row.description,
+            Level: row.level,
+            Thumbnail: row.thumbnail,
+            CreatedAt: row.createdat,
+            IsCompleted: row.iscompleted || false,
             moduleCount: parseInt(row.modulecount || 0)
         }));
 
         res.json({ success: true, courses });
     } catch (err) {
-        console.error('getMyCourses error:', err);
-        res.status(500).json({ success: false, message: 'Lỗi server' });
+        console.error('❌ getMyCourses error:', err.message, err.stack);
+        res.status(500).json({ success: false, message: 'Lỗi server: ' + err.message });
     }
 };
 
@@ -186,14 +189,15 @@ exports.getMyCourses = async (req, res) => {
 exports.createMyCourse = async (req, res) => {
     try {
         const { userId, Title, Description, Level, Thumbnail } = req.body;
+        console.log(`📝 createMyCourse: userId=${userId}, title='${Title}'`);
 
         if (!userId || !Title || !Description) {
             return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (userId, Title, Description)' });
         }
 
         const result = await pool.query(
-            `INSERT INTO Courses (Title, Description, Level, Thumbnail, CreatedAt, userid)
-             VALUES ($1, $2, $3, $4, NOW(), $5)
+            `INSERT INTO Courses (title, description, level, thumbnail, createdat, iscompleted, userid)
+             VALUES ($1, $2, $3, $4, NOW(), false, $5::integer)
              RETURNING *`,
             [
                 Title,
@@ -205,20 +209,22 @@ exports.createMyCourse = async (req, res) => {
         );
 
         let c = result.rows[0];
+        console.log(`✅ createMyCourse: created course`, c);
         if (c) {
             c = {
-                CourseID: c.courseid || c.CourseID,
-                Title: c.title || c.Title,
-                Description: c.description || c.Description,
-                Level: c.level || c.Level,
-                Thumbnail: c.thumbnail || c.Thumbnail,
-                CreatedAt: c.createdat || c.CreatedAt
+                CourseID: c.courseid,
+                Title: c.title,
+                Description: c.description,
+                Level: c.level,
+                Thumbnail: c.thumbnail,
+                CreatedAt: c.createdat,
+                IsCompleted: c.iscompleted
             };
         }
 
         res.status(201).json({ success: true, course: c, message: 'Tạo khóa học thành công!' });
     } catch (err) {
-        console.error('createMyCourse error:', err);
+        console.error('❌ createMyCourse error:', err.message, err.stack);
         res.status(500).json({ success: false, message: 'Lỗi server: ' + err.message });
     }
 };
