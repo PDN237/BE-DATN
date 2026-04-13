@@ -145,3 +145,153 @@ exports.updateProfile = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };
+
+// ================================================================
+// MY COURSES — Courses created by this user (userid column)
+// ================================================================
+
+// GET /api/profile/my-courses?userId=X
+exports.getMyCourses = async (req, res) => {
+    try {
+        const userId = parseInt(req.query.userId) || 1;
+
+        const result = await pool.query(
+            `SELECT c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.IsCompleted,
+                    (SELECT COUNT(*) FROM Modules m WHERE m.CourseID = c.CourseID) as modulecount
+             FROM Courses c
+             WHERE c.userid = $1
+             ORDER BY c.CreatedAt DESC`,
+            [userId]
+        );
+
+        const courses = (result.rows || []).map(row => ({
+            CourseID: row.courseid || row.CourseID,
+            Title: row.title || row.Title,
+            Description: row.description || row.Description,
+            Level: row.level || row.Level,
+            Thumbnail: row.thumbnail || row.Thumbnail,
+            CreatedAt: row.createdat || row.CreatedAt,
+            IsCompleted: row.iscompleted || row.IsCompleted || false,
+            moduleCount: parseInt(row.modulecount || 0)
+        }));
+
+        res.json({ success: true, courses });
+    } catch (err) {
+        console.error('getMyCourses error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// POST /api/profile/my-courses
+exports.createMyCourse = async (req, res) => {
+    try {
+        const { userId, Title, Description, Level, Thumbnail } = req.body;
+
+        if (!userId || !Title || !Description) {
+            return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc (userId, Title, Description)' });
+        }
+
+        const result = await pool.query(
+            `INSERT INTO Courses (Title, Description, Level, Thumbnail, CreatedAt, userid)
+             VALUES ($1, $2, $3, $4, NOW(), $5)
+             RETURNING *`,
+            [
+                Title,
+                Description,
+                Level || 'Cơ bản',
+                Thumbnail || '',
+                parseInt(userId)
+            ]
+        );
+
+        let c = result.rows[0];
+        if (c) {
+            c = {
+                CourseID: c.courseid || c.CourseID,
+                Title: c.title || c.Title,
+                Description: c.description || c.Description,
+                Level: c.level || c.Level,
+                Thumbnail: c.thumbnail || c.Thumbnail,
+                CreatedAt: c.createdat || c.CreatedAt
+            };
+        }
+
+        res.status(201).json({ success: true, course: c, message: 'Tạo khóa học thành công!' });
+    } catch (err) {
+        console.error('createMyCourse error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server: ' + err.message });
+    }
+};
+
+// PUT /api/profile/my-courses/:id
+exports.updateMyCourse = async (req, res) => {
+    try {
+        const courseId = parseInt(req.params.id);
+        const { userId, Title, Description, Level, Thumbnail } = req.body;
+
+        if (!userId || !Title || !Description) {
+            return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
+        }
+
+        // Verify ownership
+        const checkOwner = await pool.query(
+            'SELECT CourseID FROM Courses WHERE CourseID = $1 AND userid = $2',
+            [courseId, parseInt(userId)]
+        );
+        if (!checkOwner.rows.length) {
+            return res.status(403).json({ success: false, message: 'Bạn không có quyền chỉnh sửa khóa học này' });
+        }
+
+        await pool.query(
+            `UPDATE Courses 
+             SET Title = $1, Description = $2, Level = $3, Thumbnail = $4, UpdatedAt = NOW()
+             WHERE CourseID = $5 AND userid = $6`,
+            [Title, Description, Level || 'Cơ bản', Thumbnail || '', courseId, parseInt(userId)]
+        );
+
+        res.json({ success: true, message: 'Cập nhật khóa học thành công!' });
+    } catch (err) {
+        console.error('updateMyCourse error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// DELETE /api/profile/my-courses/:id
+exports.deleteMyCourse = async (req, res) => {
+    try {
+        const courseId = parseInt(req.params.id);
+        const userId = parseInt(req.query.userId) || parseInt(req.body.userId);
+
+        if (!userId) {
+            return res.status(400).json({ success: false, message: 'Thiếu userId' });
+        }
+
+        // Verify ownership
+        const checkOwner = await pool.query(
+            'SELECT CourseID FROM Courses WHERE CourseID = $1 AND userid = $2',
+            [courseId, userId]
+        );
+        if (!checkOwner.rows.length) {
+            return res.status(403).json({ success: false, message: 'Bạn không có quyền xóa khóa học này' });
+        }
+
+        // Check if course has modules
+        const modulesCheck = await pool.query(
+            'SELECT COUNT(*) as count FROM Modules WHERE CourseID = $1',
+            [courseId]
+        );
+        if (parseInt(modulesCheck.rows[0]?.count || 0) > 0) {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Không thể xóa khóa học đã có module. Hãy xóa các module trước.' 
+            });
+        }
+
+        await pool.query('DELETE FROM Courses WHERE CourseID = $1 AND userid = $2', [courseId, userId]);
+
+        res.json({ success: true, message: 'Xóa khóa học thành công!' });
+    } catch (err) {
+        console.error('deleteMyCourse error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
