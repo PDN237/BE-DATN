@@ -10,6 +10,7 @@ const coursesRoute = require('./routes/courses.route');
 const adminRoute = require('./routes/admin.route');
 const profileRoute = require('./routes/profile.route');
 const aiCoachRoute = require('./controllers/AICoach');
+const instructorRoute = require('./routes/instructor.route');
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/courses', coursesRoute);
 app.use('/api/admin', adminRoute);
 app.use('/api/profile', profileRoute);
 app.use('/api/aicoach', aiCoachRoute);
+app.use('/api/instructor', instructorRoute);
 
 
 
