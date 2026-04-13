@@ -21,18 +21,18 @@ const getInstructorById = async (req, res) => {
     
     const instructor = instructorResult.rows[0];
     
-    // Get instructor's courses (both published and draft)
+    // Get instructor's published courses only (iscompleted=true AND accept=true)
     const coursesQuery = `
       SELECT CourseID, Title, Description, Level, Thumbnail, CreatedAt, iscompleted, accept
       FROM Courses
-      WHERE UserID = $1
+      WHERE UserID = $1 AND iscompleted = true AND accept = true
       ORDER BY CreatedAt DESC
     `;
     const coursesResult = await pool.query(coursesQuery, [instructorId]);
     
-    // Count total courses and published courses
+    // Count total courses (all published)
     const totalCourses = coursesResult.rows.length;
-    const publishedCourses = coursesResult.rows.filter(c => c.iscompleted && c.accept).length;
+    const publishedCourses = coursesResult.rows.length;
     
     res.json({
       success: true,
