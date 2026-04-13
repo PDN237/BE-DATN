@@ -14,6 +14,8 @@ router.get('/courses', adminAuth.requireAdmin, courseController.getAllCourses);
 router.get('/courses/:id', adminAuth.requireAdmin, courseController.getCourseById);
 router.put('/courses/:id', adminAuth.requireAdmin, courseController.updateCourse);
 router.delete('/courses/:id', adminAuth.requireAdmin, courseController.deleteCourse);
+router.put('/courses/:id/approve', adminAuth.requireAdmin, courseController.approveCourse);
+router.put('/courses/:id/reject', adminAuth.requireAdmin, courseController.rejectCourse);
 
 // Dashboard
 const dashboardController = require('../controllers/Admin/Dashboard');

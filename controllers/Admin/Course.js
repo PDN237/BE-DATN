@@ -53,11 +53,12 @@ const CourseController = {
       
       const coursesResult = await pool.query(
         `SELECT c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt,
+          c.iscompleted, c.accept, c.feedback, c.userid,
           COUNT(m.ModuleID) as moduleCount
          FROM Courses c
          LEFT JOIN Modules m ON c.CourseID = m.CourseID
-         WHERE 1=1 ${mainWhereClause}
-         GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt
+         WHERE c.accept = true ${mainWhereClause}
+         GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.iscompleted, c.accept, c.feedback, c.userid
          ORDER BY c.CreatedAt DESC
          LIMIT $1 OFFSET $2`,
         mainParams
@@ -66,12 +67,12 @@ const CourseController = {
       let countResult;
       if (useSearch) {
         countResult = await pool.query(
-          `SELECT COUNT(*) as total FROM Courses c WHERE c.Title LIKE $1`,
+          `SELECT COUNT(*) as total FROM Courses c WHERE c.accept = true AND c.Title LIKE $1`,
           [searchParam]
         );
       } else {
         countResult = await pool.query(
-          `SELECT COUNT(*) as total FROM Courses`
+          `SELECT COUNT(*) as total FROM Courses WHERE accept = true`
         );
       }
       
@@ -83,6 +84,10 @@ const CourseController = {
           Level: row.level || row.Level,
           Thumbnail: row.thumbnail || row.Thumbnail,
           CreatedAt: row.createdat || row.CreatedAt,
+          IsCompleted: row.iscompleted || false,
+          Accept: row.accept || false,
+          Feedback: row.feedback || '',
+          UserId: row.userid,
           moduleCount: parseInt(row.modulecount || row.moduleCount || 0)
       }));
       const total = parseInt(countResult.rows[0]?.total || 0);
@@ -304,6 +309,37 @@ const CourseController = {
         error: 'Delete failed: ' + error.message,
         debug: process.env.NODE_ENV === 'development' ? error.stack : undefined 
       });
+    }
+  },
+
+  // PUT /api/admin/courses/:id/approve
+  approveCourse: async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      await pool.query(
+        `UPDATE Courses SET accept = true, iscompleted = true, feedback = '' WHERE CourseID = $1`,
+        [courseId]
+      );
+      res.json({ success: true, message: 'Khóa học đã được phê duyệt và xuất bản!' });
+    } catch (error) {
+      console.error('approveCourse:', error);
+      res.status(500).json({ error: error.message });
+    }
+  },
+
+  // PUT /api/admin/courses/:id/reject
+  rejectCourse: async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.id);
+      const { feedback } = req.body;
+      await pool.query(
+        `UPDATE Courses SET accept = false, iscompleted = false, feedback = $2 WHERE CourseID = $1`,
+        [courseId, feedback || '']
+      );
+      res.json({ success: true, message: 'Đã từ chối khóa học và gửi feedback.' });
+    } catch (error) {
+      console.error('rejectCourse:', error);
+      res.status(500).json({ error: error.message });
     }
   }
 };

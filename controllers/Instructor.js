@@ -62,7 +62,9 @@ const InstructorController = {
           Description: course.description,
           Level: course.level,
           Thumbnail: course.thumbnail,
-          IsCompleted: course.iscompleted
+          IsCompleted: course.iscompleted,
+          Accept: course.accept || false,
+          Feedback: course.feedback || ''
         },
         modules
       });
@@ -238,19 +240,20 @@ const InstructorController = {
     }
   },
 
-  // PUT /api/instructor/course/:courseId/publish
-  togglePublish: async (req, res) => {
+  // PUT /api/instructor/course/:courseId/submit
+  submitForReview: async (req, res) => {
     try {
       const courseId = parseInt(req.params.courseId);
-      const { userId, isCompleted } = req.body;
+      const { userId } = req.body;
 
       const check = await pool.query('SELECT 1 FROM Courses WHERE courseid=$1 AND userid=$2', [courseId, parseInt(userId)]);
       if (!check.rows.length) return res.status(403).json({ success: false, message: 'Không có quyền' });
 
-      await pool.query('UPDATE Courses SET iscompleted=$1 WHERE courseid=$2', [!!isCompleted, courseId]);
-      res.json({ success: true, message: isCompleted ? 'Đã xuất bản khóa học' : 'Đã ẩn khóa học' });
+      // Set accept=true, iscompleted stays false → pending for admin review
+      await pool.query('UPDATE Courses SET accept=true, iscompleted=false, feedback=\'\'  WHERE courseid=$1', [courseId]);
+      res.json({ success: true, message: 'Đã gửi yêu cầu xuất bản! Vui lòng chờ Admin phê duyệt.' });
     } catch (err) {
-      console.error('togglePublish error:', err);
+      console.error('submitForReview error:', err);
       res.status(500).json({ success: false, message: err.message });
     }
   }

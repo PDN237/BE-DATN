@@ -7,7 +7,7 @@ const answerCtrl = require('../controllers/Admin/Answer');
 
 // Course tree + publish
 router.get('/course/:courseId', ctrl.getCourseTree);
-router.put('/course/:courseId/publish', ctrl.togglePublish);
+router.put('/course/:courseId/submit', ctrl.submitForReview);
 
 // Modules
 router.post('/modules', ctrl.createModule);

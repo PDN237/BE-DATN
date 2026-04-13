@@ -158,6 +158,7 @@ exports.getMyCourses = async (req, res) => {
 
         const result = await pool.query(
             `SELECT c.courseid, c.title, c.description, c.level, c.thumbnail, c.createdat, c.iscompleted,
+                    c.accept, c.feedback,
                     (SELECT COUNT(*) FROM Modules m WHERE m.CourseID = c.courseid) as modulecount
              FROM Courses c
              WHERE c.userid = $1
@@ -175,6 +176,8 @@ exports.getMyCourses = async (req, res) => {
             Thumbnail: row.thumbnail,
             CreatedAt: row.createdat,
             IsCompleted: row.iscompleted || false,
+            Accept: row.accept || false,
+            Feedback: row.feedback || '',
             moduleCount: parseInt(row.modulecount || 0)
         }));
 
@@ -196,8 +199,8 @@ exports.createMyCourse = async (req, res) => {
         }
 
         const result = await pool.query(
-            `INSERT INTO Courses (title, description, level, thumbnail, createdat, iscompleted, userid)
-             VALUES ($1, $2, $3, $4, NOW(), false, $5::integer)
+            `INSERT INTO Courses (title, description, level, thumbnail, createdat, iscompleted, accept, userid)
+             VALUES ($1, $2, $3, $4, NOW(), false, false, $5::integer)
              RETURNING *`,
             [
                 Title,
@@ -218,7 +221,8 @@ exports.createMyCourse = async (req, res) => {
                 Level: c.level,
                 Thumbnail: c.thumbnail,
                 CreatedAt: c.createdat,
-                IsCompleted: c.iscompleted
+                IsCompleted: c.iscompleted,
+                Accept: c.accept
             };
         }
 
