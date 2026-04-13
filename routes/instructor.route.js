@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const ctrl = require('../controllers/Instructor');
+const beCtrl = require('../controllers/BeInstructor');
 const quizCtrl = require('../controllers/Admin/Quiz');
 const questionCtrl = require('../controllers/Admin/Question');
 const answerCtrl = require('../controllers/Admin/Answer');
@@ -37,5 +38,8 @@ router.post('/answers', answerCtrl.createAnswer);
 router.get('/answers/:questionId', answerCtrl.getAnswersByQuestion);
 router.put('/answers/:id', answerCtrl.updateAnswer);
 router.delete('/answers/:id', answerCtrl.deleteAnswer);
+
+// Become Instructor
+router.put('/become', beCtrl.becomeInstructor);
 
 module.exports = router;

@@ -6,7 +6,7 @@ exports.getProfile = async (req, res) => {
         
         // 1. Get basic info
         const userQuery = `
-            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe
+            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe, RoleID
             FROM USERS 
             WHERE UserID = $1
         `;
@@ -25,7 +25,8 @@ exports.getProfile = async (req, res) => {
             Location: userRaw.location || userRaw.Location,
             Gender: userRaw.gender || userRaw.Gender,
             BirthYear: userRaw.birthyear || userRaw.BirthYear,
-            Describe: userRaw.describe || userRaw.Describe || ''
+            Describe: userRaw.describe || userRaw.Describe || '',
+            RoleID: userRaw.roleid || userRaw.RoleID
         } : null;
 
         // 2. Get problems solved (Count and List)
