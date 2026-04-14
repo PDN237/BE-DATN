@@ -302,9 +302,9 @@ exports.deleteMyCourse = async (req, res) => {
             [courseId]
         );
         if (parseInt(modulesCheck.rows[0]?.count || 0) > 0) {
-            return res.status(400).json({ 
-                success: false, 
-                message: 'Không thể xóa khóa học đã có module. Hãy xóa các module trước.' 
+            return res.status(400).json({
+                success: false,
+                message: 'Không thể xóa khóa học đã có module. Hãy xóa các module trước.'
             });
         }
 
@@ -313,6 +313,52 @@ exports.deleteMyCourse = async (req, res) => {
         res.json({ success: true, message: 'Xóa khóa học thành công!' });
     } catch (err) {
         console.error('deleteMyCourse error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
+
+// ================================================================
+// UPDATE USER SCORE WHEN LESSON IS COMPLETED
+// ================================================================
+
+exports.updateUserScore = async (req, res) => {
+    try {
+        const { userId, lessonId } = req.body;
+
+        if (!userId || !lessonId) {
+            return res.status(400).json({ success: false, message: 'Thiếu userId hoặc lessonId' });
+        }
+
+        // Get lesson score
+        const lessonResult = await pool.query(
+            'SELECT score FROM Lessons WHERE LessonID = $1',
+            [parseInt(lessonId)]
+        );
+
+        if (lessonResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Lesson not found' });
+        }
+
+        const lessonScore = lessonResult.rows[0].score || 0;
+
+        if (lessonScore === 0) {
+            return res.json({ success: true, message: 'Lesson không có điểm', pointsEarned: 0 });
+        }
+
+        // Update user score
+        await pool.query(
+            'UPDATE USERS SET score = COALESCE(score, 0) + $1 WHERE UserID = $2',
+            [lessonScore, parseInt(userId)]
+        );
+
+        res.json({
+            success: true,
+            message: 'Cập nhật điểm thành công!',
+            pointsEarned: lessonScore
+        });
+
+    } catch (err) {
+        console.error('updateUserScore error:', err);
         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };
