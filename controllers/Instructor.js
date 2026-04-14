@@ -152,6 +152,10 @@ const InstructorController = {
         return res.status(400).json({ success: false, message: 'ModuleID, Title, Type required' });
       }
 
+      if (!['video', 'reading', 'quiz'].includes(Type)) {
+        return res.status(400).json({ success: false, message: 'Invalid lesson type. Must be video, reading, or quiz' });
+      }
+
       const maxOrder = await pool.query(
         'SELECT COALESCE(MAX(OrderIndex), 0) + 1 as nextorder FROM Lessons WHERE ModuleID = $1',
         [parseInt(ModuleID)]
