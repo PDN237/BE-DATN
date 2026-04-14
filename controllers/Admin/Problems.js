@@ -126,19 +126,51 @@ const ProblemsController = {
         return res.status(409).json({ error: 'A problem with this title already exists' });
       }
 
-      const result = await client.query(
-        `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING *`,
-        [
-          title.trim(),
-          description.trim(),
-          difficulty || 'Medium',
-          timeLimitNum,
-          hints || '',
-          examples || ''
-        ]
-      );
+      let result;
+      try {
+        result = await client.query(
+          `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING *`,
+          [
+            title.trim(),
+            description.trim(),
+            difficulty || 'Medium',
+            timeLimitNum,
+            hints || '',
+            examples || ''
+          ]
+        );
+      } catch (insertError) {
+        // Handle duplicate key violation (sequence sync issue)
+        if (insertError.code === '23505' && insertError.constraint === 'problems_pkey') {
+          // Reset the sequence to the max existing id
+          await client.query(
+            `SELECT setval(
+              pg_get_serial_sequence('Problems', 'id'),
+              COALESCE(MAX(id), 1),
+              true
+            ) FROM Problems`
+          );
+          
+          // Retry the insert
+          result = await client.query(
+            `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING *`,
+            [
+              title.trim(),
+              description.trim(),
+              difficulty || 'Medium',
+              timeLimitNum,
+              hints || '',
+              examples || ''
+            ]
+          );
+        } else {
+          throw insertError;
+        }
+      }
 
       await client.query('COMMIT');
       res.status(201).json({ 
