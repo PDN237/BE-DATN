@@ -7,11 +7,12 @@ const getAllProblems = async (req, res) => {
     let queryParams = [];
     
     let query = `
-      SELECT 
-         id,
+      SELECT
+        id,
         title,
         difficulty,
-        time_limit`;
+        time_limit,
+        accept`;
         
     if (userId) {
       queryParams.push(userId);
@@ -57,14 +58,15 @@ const getProblemById = async (req, res) => {
     const userId = parseInt(req.query.userId);
     
     let query = `
-      SELECT 
+      SELECT
         id,
         title,
         description,
         difficulty,
         time_limit,
         hints,
-        examples`;
+        examples,
+        accept`;
         
     let queryParams = [id];
     
