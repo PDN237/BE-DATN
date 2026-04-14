@@ -136,16 +136,39 @@ const submitCode = async (req, res) => {
                 if (judgeResult.stderr && judgeResult.stderr.trim()) {
                     testStatus = 'Runtime Error';
                     output = judgeResult.stderr;
+                    console.error('=== SUBMIT RUNTIME ERROR ===');
+                    console.error('Problem ID:', problemId);
+                    console.error('Test Case ID:', testCase.id);
+                    console.error('Language:', language);
+                    console.error('Stderr:', judgeResult.stderr);
+                    console.error('==========================');
                 }
 
                 if (testStatus === 'Accepted') {
                     if (!judgeService.compareOutput(output, expected)) {
                         testStatus = 'Wrong Answer';
+                        console.log('=== SUBMIT WRONG ANSWER ===');
+                        console.log('Problem ID:', problemId);
+                        console.log('Test Case ID:', testCase.id);
+                        console.log('Expected:', expected);
+                        console.log('Actual:', output);
+                        console.log('==========================');
                     }
                 }
             } else {
                 testStatus = judgeResult.status || 'System Error';
                 output = judgeResult.error || 'Unknown error';
+                console.error('=== SUBMIT SYSTEM ERROR ===');
+                console.error('Problem ID:', problemId);
+                console.error('Test Case ID:', testCase.id);
+                console.error('Language:', language);
+                console.error('Time Limit:', testCaseTimeLimit);
+                console.error('Input:', input);
+                console.error('Expected:', expected);
+                console.error('Error:', judgeResult.error);
+                console.error('Error Type:', judgeResult.errorType);
+                console.error('Status:', judgeResult.status);
+                console.error('==========================');
             }
 
             await client.query(`
@@ -239,7 +262,14 @@ const submitCode = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Error submitting code:', error);
+        console.error('=== SUBMIT DATABASE ERROR ===');
+        console.error('Problem ID:', problemId);
+        console.error('User ID:', pUserId);
+        console.error('Language:', language);
+        console.error('Error:', error);
+        console.error('Error Message:', error.message);
+        console.error('Error Stack:', error.stack);
+        console.error('==========================');
         res.status(500).json({
             success: false,
             message: 'Error submitting code',
