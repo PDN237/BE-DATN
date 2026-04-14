@@ -104,11 +104,17 @@ const submitCode = async (req, res) => {
         for (const testCase of testCases) {
             let input = testCase.input_data || '';
             const expected = (testCase.expected_output || '').trim();
-            
-            const testCaseTimeLimit = testCase.time_limit !== null && testCase.time_limit !== undefined 
-                ? testCase.time_limit 
+
+            console.log('=== DEBUG TEST CASE ===');
+            console.log('Test Case ID:', testCase.id);
+            console.log('Raw input:', JSON.stringify(input));
+            console.log('Expected:', JSON.stringify(expected));
+            console.log('=====================');
+
+            const testCaseTimeLimit = testCase.time_limit !== null && testCase.time_limit !== undefined
+                ? testCase.time_limit
                 : (problem.time_limit || 2);
-    
+
             const judgeResult = await judgeService.runWithYepCode(
                 code,
                 input,
