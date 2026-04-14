@@ -207,38 +207,7 @@ module.exports = {
 
       const lessonData = lessonQuery.rows[0];
 
-      // 3. If quiz, mark all subsequent lessons as completed
-      if (lessonData && lessonData.type === 'quiz') {
-        const pUserId = parseInt(userId);
-        const pCourseId = parseInt(lessonData.courseid);
-        const pModOrder = parseInt(lessonData.moduleorder);
-        const pLessOrder = parseInt(lessonData.orderindex);
-
-        // Application-level upsert for multiple lessons
-        const targetLessons = await pool.query(`
-          SELECT l.LessonID
-          FROM Lessons l
-          JOIN Modules m ON l.ModuleID = m.ModuleID
-          WHERE m.CourseID = $1
-          AND (
-            m.OrderIndex > $2
-            OR
-            (m.OrderIndex = $2 AND l.OrderIndex > $3)
-          )
-        `, [pCourseId, pModOrder, pLessOrder]);
-
-        const lessonIds = targetLessons.rows.map(r => r.lessonid || r.LessonID);
-        for (const lid of lessonIds) {
-            const ex = await pool.query('SELECT 1 FROM UserProgress WHERE UserID = $1 AND LessonID = $2', [pUserId, parseInt(lid)]);
-            if (ex.rows.length > 0) {
-                await pool.query('UPDATE UserProgress SET Status = $3, CompletedAt = NOW() WHERE UserID = $1 AND LessonID = $2', [pUserId, parseInt(lid), 'completed']);
-            } else {
-                await pool.query('INSERT INTO UserProgress (UserID, LessonID, Status, CompletedAt) VALUES ($1, $2, $3, NOW())', [pUserId, parseInt(lid), 'completed']);
-            }
-        }
-      }
-
-      res.json({ success: true, message: 'Lesson(s) marked as completed' });
+      res.json({ success: true, message: 'Lesson marked as completed' });
     } catch (error) {
       console.error('completeLesson error:', error);
       res.status(500).json({ error: error.message });
