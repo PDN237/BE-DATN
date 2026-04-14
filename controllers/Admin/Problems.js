@@ -142,8 +142,15 @@ const ProblemsController = {
           ]
         );
       } catch (insertError) {
+        console.log('INSERT ERROR DETAILS:', {
+          code: insertError.code,
+          constraint: insertError.constraint,
+          message: insertError.message
+        });
+        
         // Handle duplicate key violation (sequence sync issue)
-        if (insertError.code === '23505' && insertError.constraint === 'problems_pkey') {
+        if (insertError.code === '23505' && (insertError.constraint === 'problems_pkey' || insertError.message.includes('problems_pkey'))) {
+          console.log('Attempting to reset sequence...');
           // Reset the sequence to the max existing id
           await client.query(
             `SELECT setval(
@@ -152,6 +159,7 @@ const ProblemsController = {
               true
             ) FROM Problems`
           );
+          console.log('Sequence reset, retrying insert...');
           
           // Retry the insert
           result = await client.query(
@@ -167,7 +175,9 @@ const ProblemsController = {
               examples || ''
             ]
           );
+          console.log('Insert retry successful');
         } else {
+          console.log('Error not handled by sequence fix, rethrowing...');
           throw insertError;
         }
       }
