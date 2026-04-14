@@ -109,9 +109,9 @@ const submitCode = async (req, res) => {
                 ? testCase.time_limit 
                 : (problem.time_limit || 2);
 
-            // Add small delay between test cases to avoid rate limiting
+            // Add delay between test cases to avoid rate limiting
             if (testCases.indexOf(testCase) > 0) {
-                await new Promise(resolve => setTimeout(resolve, 500));
+                await new Promise(resolve => setTimeout(resolve, 2000));
             }
     
             const judgeResult = await judgeService.runWithYepCode(
