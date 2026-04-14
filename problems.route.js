@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const problemsController = require('./controllers/Problems');
+const problemsController = require('./controllers/Problems-fixed');
 
 // GET /api/problems - Lấy tất cả problems
 router.get('/', problemsController.getAllProblems);
