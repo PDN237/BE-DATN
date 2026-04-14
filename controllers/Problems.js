@@ -12,7 +12,8 @@ const getAllProblems = async (req, res) => {
         title,
         difficulty,
         time_limit,
-        accept`;
+        accept,
+        score`;
         
     if (userId) {
       queryParams.push(userId);
@@ -66,7 +67,8 @@ const getProblemById = async (req, res) => {
         time_limit,
         hints,
         examples,
-        accept`;
+        accept,
+        score`;
         
     let queryParams = [id];
     
