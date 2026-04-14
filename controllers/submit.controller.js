@@ -114,39 +114,18 @@ const submitCode = async (req, res) => {
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
     
-            const judgeResult = await judgeService.runWithYepCode(
+            const judgeResult = await judgeService.runSingleTestCase(
                 code,
                 input,
+                expected,
                 language,
                 { timeLimit: testCaseTimeLimit }
             );
 
-            let testStatus = 'Wrong Answer';
-            let output = '';
-            let executionTime = 0;
-            let memoryUsed = 0;
-
-            if (judgeResult.success) {
-                output = (judgeResult.stdout || '').trim();
-                executionTime = judgeResult.executionTime || 0;
-                memoryUsed = judgeResult.memory || 0;
-
-                testStatus = judgeResult.status || 'Accepted';
-                
-                if (judgeResult.stderr && judgeResult.stderr.trim()) {
-                    testStatus = 'Runtime Error';
-                    output = judgeResult.stderr;
-                }
-
-                if (testStatus === 'Accepted') {
-                    if (!judgeService.compareOutput(output, expected)) {
-                        testStatus = 'Wrong Answer';
-                    }
-                }
-            } else {
-                testStatus = judgeResult.status || 'System Error';
-                output = judgeResult.error || 'Unknown error';
-            }
+            let testStatus = judgeResult.status || 'Wrong Answer';
+            let output = judgeResult.output || '';
+            let executionTime = judgeResult.runtime || 0;
+            let memoryUsed = judgeResult.memory || 0;
 
             await client.query(`
                 INSERT INTO Results (submission_id, testcase_id, status, output, execution_time)
