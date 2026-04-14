@@ -13,8 +13,8 @@ const ProblemsController = {
       const useSearch = search.length > 0;
 
       const mainParams = [offset, size]; // $1 = offset, $2 = size
-      let mainQuery = `SELECT 
-        p.id, p.title, p.difficulty, p.time_limit, 
+      let mainQuery = `SELECT
+        p.id, p.title, p.difficulty, p.time_limit, p.accept,
         COUNT(tc.id) as testcase_count,
         COUNT(s.id) as submission_count
         FROM Problems p
@@ -27,7 +27,7 @@ const ProblemsController = {
         mainParams.push(searchParam);
       }
       mainQuery += mainWhereClause + `
-        GROUP BY p.id, p.title, p.difficulty, p.time_limit
+        GROUP BY p.id, p.title, p.difficulty, p.time_limit, p.accept
         ORDER BY p.id DESC
         LIMIT $2 OFFSET $1`;
 
@@ -83,7 +83,7 @@ const ProblemsController = {
     try {
       await client.query('BEGIN');
 
-      const { title, description, difficulty, time_limit, hints, examples } = req.body;
+      const { title, description, difficulty, time_limit, hints, examples, accept } = req.body;
 
       // Enhanced validation
       if (!title || typeof title !== 'string' || title.trim().length === 0) {
@@ -129,8 +129,8 @@ const ProblemsController = {
       let result;
       try {
         result = await client.query(
-          `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
-           VALUES ($1, $2, $3, $4, $5, $6)
+          `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)
            RETURNING *`,
           [
             title.trim(),
@@ -138,7 +138,8 @@ const ProblemsController = {
             difficulty || 'Medium',
             timeLimitNum,
             hints || '',
-            examples || ''
+            examples || '',
+            accept !== undefined ? accept : true
           ]
         );
       } catch (insertError) {
@@ -163,8 +164,8 @@ const ProblemsController = {
           
           // Retry the insert
           result = await client.query(
-            `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
-             VALUES ($1, $2, $3, $4, $5, $6)
+            `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING *`,
             [
               title.trim(),
@@ -172,7 +173,8 @@ const ProblemsController = {
               difficulty || 'Medium',
               timeLimitNum,
               hints || '',
-              examples || ''
+              examples || '',
+              accept !== undefined ? accept : true
             ]
           );
           console.log('Insert retry successful');
@@ -203,7 +205,7 @@ const ProblemsController = {
       await client.query('BEGIN');
 
       const id = parseInt(req.params.id);
-      const { title, description, difficulty, time_limit, hints, examples } = req.body;
+      const { title, description, difficulty, time_limit, hints, examples, accept } = req.body;
 
       // Check if problem exists
       const problemCheck = await client.query(
@@ -305,6 +307,10 @@ const ProblemsController = {
         updates.push(`examples = $${paramIndex++}`);
         values.push(examples || '');
       }
+      if (accept !== undefined) {
+        updates.push(`accept = $${paramIndex++}`);
+        values.push(accept);
+      }
 
       if (updates.length === 0) {
         await client.query('ROLLBACK');
@@ -358,29 +364,24 @@ const ProblemsController = {
 
       const problemTitle = problemCheck.rows[0].title;
 
-      // Check submissions
-      const subCheck = await client.query(
-        `SELECT COUNT(*) as count FROM Submissions WHERE problem_id = $1`,
-        [id]
-      );
+      // Check submissions and test cases count for info
+      const [subCheck, tcCheck] = await Promise.all([
+        client.query(`SELECT COUNT(*) as count FROM Submissions WHERE problem_id = $1`, [id]),
+        client.query(`SELECT COUNT(*) as count FROM TestCases WHERE problem_id = $1`, [id])
+      ]);
       const submissionCount = parseInt(subCheck.rows[0].count || 0);
-
-      if (submissionCount > 0) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ 
-          error: `Cannot delete problem with ${submissionCount} submission(s). Please delete submissions first or archive the problem instead.` 
-        });
-      }
-
-      // Check test cases count for info
-      const tcCheck = await client.query(
-        `SELECT COUNT(*) as count FROM TestCases WHERE problem_id = $1`,
-        [id]
-      );
       const testcaseCount = parseInt(tcCheck.rows[0].count || 0);
 
       // Cascade delete in proper order:
-      // 1. Delete Results (via testcases - though should be none if no submissions)
+      // 1. Delete Results (via submissions)
+      await client.query(
+        `DELETE FROM Results r
+         USING Submissions s
+         WHERE r.submission_id = s.id AND s.problem_id = $1`,
+        [id]
+      );
+
+      // 2. Delete Results (via testcases - backup)
       await client.query(
         `DELETE FROM Results r
          USING TestCases tc
@@ -388,10 +389,13 @@ const ProblemsController = {
         [id]
       );
 
-      // 2. Delete TestCases
+      // 3. Delete Submissions
+      await client.query(`DELETE FROM Submissions WHERE problem_id = $1`, [id]);
+
+      // 4. Delete TestCases
       await client.query(`DELETE FROM TestCases WHERE problem_id = $1`, [id]);
 
-      // 3. Delete Problem
+      // 5. Delete Problem
       const deleteResult = await client.query(`DELETE FROM Problems WHERE id = $1 RETURNING id`, [id]);
 
       if (deleteResult.rows.length === 0) {
@@ -407,7 +411,8 @@ const ProblemsController = {
         deleted: {
           problemId: id,
           problemTitle: problemTitle,
-          testcasesDeleted: testcaseCount
+          testcasesDeleted: testcaseCount,
+          submissionsDeleted: submissionCount
         }
       });
     } catch (error) {
