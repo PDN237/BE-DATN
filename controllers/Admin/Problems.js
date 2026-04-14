@@ -83,7 +83,7 @@ const ProblemsController = {
     try {
       await client.query('BEGIN');
 
-      const { title, description, difficulty, time_limit, hints, examples, accept } = req.body;
+      const { title, description, difficulty, time_limit, hints, examples, accept, score } = req.body;
 
       // Enhanced validation
       if (!title || typeof title !== 'string' || title.trim().length === 0) {
