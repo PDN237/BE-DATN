@@ -198,6 +198,25 @@ const submitCode = async (req, res) => {
 
         await client.query('COMMIT');
 
+        let pointsEarned = 0;
+        
+        // If submission is accepted and userId is provided, award points
+        if (finalStatus === 'Accepted' && pUserId) {
+            try {
+                const profileController = require('./profile');
+                const pointsResult = await profileController.addProblemPoints({
+                    body: { userId: pUserId, problemId: parseInt(problemId) }
+                }, { json: (data) => data, status: (code) => ({ status: code }) });
+                
+                if (pointsResult.success && pointsResult.pointsEarned > 0) {
+                    pointsEarned = pointsResult.pointsEarned;
+                }
+            } catch (pointsError) {
+                console.error('Error adding problem points:', pointsError);
+                // Don't fail the submission if points awarding fails
+            }
+        }
+
         res.json({
             success: true,
             data: {
@@ -205,6 +224,7 @@ const submitCode = async (req, res) => {
                 status: finalStatus,
                 runtime: totalExecutionTime,
                 memory: totalMemoryUsed,
+                pointsEarned: pointsEarned,
                 testcases: testResults.map(tc => ({
                     id: tc.id,
                     status: tc.status

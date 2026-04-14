@@ -408,3 +408,67 @@ exports.addCoursePoints = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };
+
+// ================================================================
+// ADD PROBLEM POINTS WHEN PROBLEM IS SOLVED FOR THE FIRST TIME
+// ================================================================
+
+exports.addProblemPoints = async (req, res) => {
+    try {
+        const { userId, problemId } = req.body;
+
+        if (!userId || !problemId) {
+            return res.status(400).json({ success: false, message: 'Thiếu userId hoặc problemId' });
+        }
+
+        // Get problem score
+        const problemResult = await pool.query(
+            'SELECT score FROM Problems WHERE id = $1',
+            [parseInt(problemId)]
+        );
+
+        if (problemResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Problem not found' });
+        }
+
+        const problemScore = problemResult.rows[0].score || 0;
+
+        if (problemScore === 0) {
+            return res.json({ success: true, message: 'Problem không có điểm', pointsEarned: 0 });
+        }
+
+        // Check if user has already solved this problem before (previous Accepted submission)
+        const previousAccepted = await pool.query(
+            `SELECT 1 FROM Submissions 
+             WHERE problem_id = $1 AND user_id = $2 AND status = 'Accepted'
+             LIMIT 1`,
+            [parseInt(problemId), parseInt(userId)]
+        );
+
+        // If there's already an accepted submission, don't award points again
+        if (previousAccepted.rows.length > 0) {
+            return res.json({ 
+                success: true, 
+                message: 'Bạn đã giải problem này trước đó', 
+                pointsEarned: 0, 
+                alreadySolved: true 
+            });
+        }
+
+        // Update user score
+        await pool.query(
+            'UPDATE USERS SET score = COALESCE(score, 0) + $1 WHERE UserID = $2',
+            [problemScore, parseInt(userId)]
+        );
+
+        res.json({
+            success: true,
+            message: 'Cộng điểm problem thành công!',
+            pointsEarned: problemScore
+        });
+
+    } catch (err) {
+        console.error('addProblemPoints error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
