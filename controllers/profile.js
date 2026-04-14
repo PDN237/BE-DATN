@@ -6,7 +6,7 @@ exports.getProfile = async (req, res) => {
         
         // 1. Get basic info
         const userQuery = `
-            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe, RoleID
+            SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe, RoleID, score, title
             FROM USERS 
             WHERE UserID = $1
         `;
@@ -26,7 +26,9 @@ exports.getProfile = async (req, res) => {
             Gender: userRaw.gender || userRaw.Gender,
             BirthYear: userRaw.birthyear || userRaw.BirthYear,
             Describe: userRaw.describe || userRaw.Describe || '',
-            RoleID: userRaw.roleid || userRaw.RoleID
+            RoleID: userRaw.roleid || userRaw.RoleID,
+            score: userRaw.score,
+            title: userRaw.title
         } : null;
 
         // 2. Get problems solved (Count and List)
@@ -52,7 +54,8 @@ exports.getProfile = async (req, res) => {
                    (SELECT COUNT(*) FROM UserProgress up 
                     JOIN Lessons l ON up.LessonID = l.LessonID 
                     JOIN Modules m ON l.ModuleID = m.ModuleID 
-                    WHERE m.CourseID = c.CourseID AND up.UserID = $1 AND up.Status = 'completed') as completedlessons
+                    WHERE m.CourseID = c.CourseID AND up.UserID = $1 AND up.Status = 'completed') as completedlessons,
+                   c.score
             FROM Enrollments e
             JOIN Courses c ON e.CourseID = c.CourseID
             WHERE e.UserID = $1
@@ -65,7 +68,8 @@ exports.getProfile = async (req, res) => {
                    (SELECT COUNT(*) FROM UserProgress up2 
                     JOIN Lessons l2 ON up2.LessonID = l2.LessonID 
                     JOIN Modules m2 ON l2.ModuleID = m2.ModuleID 
-                    WHERE m2.CourseID = c.CourseID AND up2.UserID = $1 AND up2.Status = 'completed') as completedlessons
+                    WHERE m2.CourseID = c.CourseID AND up2.UserID = $1 AND up2.Status = 'completed') as completedlessons,
+                   c.score
             FROM Courses c
             WHERE EXISTS (
                SELECT 1 FROM UserProgress up 
@@ -87,7 +91,8 @@ exports.getProfile = async (req, res) => {
                 title: c.Title || c.title,
                 thumbnail: c.Thumbnail || c.thumbnail,
                 progress: progress,
-                status: progress === 100 ? 'completed' : 'learning'
+                status: progress === 100 ? 'completed' : 'learning',
+                score: c.score
             }
         });
 
@@ -112,7 +117,7 @@ exports.getProfile = async (req, res) => {
 
 exports.updateProfile = async (req, res) => {
     try {
-        const { userId, FullName, Phone, Location, Gender, BirthYear, Describe } = req.body;
+        const { userId, FullName, Phone, Location, Gender, BirthYear, Describe, score, title } = req.body;
 
         if (!userId) {
             return res.status(400).json({ success: false, message: 'Missing userId' });
@@ -125,8 +130,10 @@ exports.updateProfile = async (req, res) => {
                 Location = COALESCE($3, Location),
                 Gender = COALESCE($4, Gender),
                 BirthYear = COALESCE($5, BirthYear),
-                Describe = COALESCE($6, Describe)
-            WHERE UserID = $7
+                Describe = COALESCE($6, Describe),
+                score = COALESCE($7, score),
+                title = COALESCE($8, title)
+            WHERE UserID = $9
         `;
 
         await pool.query(updateQuery, [
@@ -136,6 +143,8 @@ exports.updateProfile = async (req, res) => {
             Gender || null,
             BirthYear || null,
             Describe !== undefined ? Describe : null,
+            score !== undefined ? parseInt(score) : null,
+            title !== undefined ? title : null,
             parseInt(userId)
         ]);
 
@@ -159,8 +168,7 @@ exports.getMyCourses = async (req, res) => {
 
         const result = await pool.query(
             `SELECT c.courseid, c.title, c.description, c.level, c.thumbnail, c.createdat, c.iscompleted,
-                    c.accept, c.feedback,
-                    (SELECT COUNT(*) FROM Modules m WHERE m.CourseID = c.courseid) as modulecount
+                    c.accept, c.feedback, c.score
              FROM Courses c
              WHERE c.userid = $1
              ORDER BY c.createdat DESC`,
@@ -179,6 +187,7 @@ exports.getMyCourses = async (req, res) => {
             IsCompleted: row.iscompleted || false,
             Accept: row.accept || false,
             Feedback: row.feedback || '',
+            score: row.score,
             moduleCount: parseInt(row.modulecount || 0)
         }));
 
@@ -192,7 +201,7 @@ exports.getMyCourses = async (req, res) => {
 // POST /api/profile/my-courses
 exports.createMyCourse = async (req, res) => {
     try {
-        const { userId, Title, Description, Level, Thumbnail } = req.body;
+        const { userId, Title, Description, Level, Thumbnail, score } = req.body;
         console.log(`📝 createMyCourse: userId=${userId}, title='${Title}'`);
 
         if (!userId || !Title || !Description) {
@@ -200,15 +209,15 @@ exports.createMyCourse = async (req, res) => {
         }
 
         const result = await pool.query(
-            `INSERT INTO Courses (title, description, level, thumbnail, createdat, iscompleted, accept, userid)
-             VALUES ($1, $2, $3, $4, NOW(), false, false, $5::integer)
-             RETURNING *`,
+            `INSERT INTO Courses (title, description, level, thumbnail, createdat, iscompleted, accept, userid, score)
+             VALUES ($1, $2, $3, $4, NOW(), false, false, $5::integer, $6) RETURNING *`,
             [
                 Title,
                 Description,
                 Level || 'Cơ bản',
                 Thumbnail || '',
-                parseInt(userId)
+                parseInt(userId),
+                score !== undefined ? parseInt(score) : 0
             ]
         );
 
@@ -223,7 +232,8 @@ exports.createMyCourse = async (req, res) => {
                 Thumbnail: c.thumbnail,
                 CreatedAt: c.createdat,
                 IsCompleted: c.iscompleted,
-                Accept: c.accept
+                Accept: c.accept,
+                score: c.score
             };
         }
 
@@ -238,7 +248,7 @@ exports.createMyCourse = async (req, res) => {
 exports.updateMyCourse = async (req, res) => {
     try {
         const courseId = parseInt(req.params.id);
-        const { userId, Title, Description, Level, Thumbnail } = req.body;
+        const { userId, Title, Description, Level, Thumbnail, score } = req.body;
 
         if (!userId || !Title || !Description) {
             return res.status(400).json({ success: false, message: 'Thiếu thông tin bắt buộc' });
@@ -255,9 +265,9 @@ exports.updateMyCourse = async (req, res) => {
 
         await pool.query(
             `UPDATE Courses 
-             SET Title = $1, Description = $2, Level = $3, Thumbnail = $4, UpdatedAt = NOW()
-             WHERE CourseID = $5 AND userid = $6`,
-            [Title, Description, Level || 'Cơ bản', Thumbnail || '', courseId, parseInt(userId)]
+             SET Title = $1, Description = $2, Level = $3, Thumbnail = $4, score = $5
+             WHERE CourseID = $6 AND userid = $7`,
+            [Title, Description, Level || 'Cơ bản', Thumbnail || '', score !== undefined ? parseInt(score) : 0, courseId, parseInt(userId)]
         );
 
         res.json({ success: true, message: 'Cập nhật khóa học thành công!' });

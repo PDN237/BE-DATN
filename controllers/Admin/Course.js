@@ -10,14 +10,15 @@ const CourseController = {
       }
       
       const result = await pool.query(
-        `INSERT INTO Courses (Title, Description, Level, Thumbnail, CreatedAt)
-         VALUES ($1, $2, $3, $4, NOW())
+        `INSERT INTO Courses (Title, Description, Level, Thumbnail, CreatedAt, score)
+         VALUES ($1, $2, $3, $4, NOW(), $5)
          RETURNING *`,
         [
           Title,
           Description,
           Level || 'Cơ bản',
-          Thumbnail || ''
+          Thumbnail || '',
+          score !== undefined ? parseInt(score) : 0
         ]
       );
       
@@ -53,12 +54,12 @@ const CourseController = {
       
       const coursesResult = await pool.query(
         `SELECT c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt,
-          c.iscompleted, c.accept, c.feedback, c.userid,
+          c.iscompleted, c.accept, c.feedback, c.userid, c.score,
           COUNT(m.ModuleID) as moduleCount
          FROM Courses c
          LEFT JOIN Modules m ON c.CourseID = m.CourseID
          WHERE c.accept = true ${mainWhereClause}
-         GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.iscompleted, c.accept, c.feedback, c.userid
+         GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.iscompleted, c.accept, c.feedback, c.userid, c.score
          ORDER BY c.CreatedAt DESC
          LIMIT $1 OFFSET $2`,
         mainParams
@@ -234,14 +235,15 @@ const CourseController = {
       await pool.query(
         `UPDATE Courses 
          SET Title = $2, Description = $3, Level = $4, 
-             Thumbnail = $5, UpdatedAt = NOW()
+             Thumbnail = $5, UpdatedAt = NOW(), score = $6
          WHERE CourseID = $1`,
         [
           courseId,
           Title,
           Description,
           Level || 'Cơ bản',
-          Thumbnail || ''
+          Thumbnail || '',
+          score !== undefined ? parseInt(score) : 0
         ]
       );
       

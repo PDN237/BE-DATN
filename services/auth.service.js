@@ -12,10 +12,10 @@ async function register(fullName, email, password) {
       throw new Error('Email đã được sử dụng');
     }
 
-    // Insert new user (RoleID=3 for student, default avatar, active)
+    // Insert new user (RoleID=3 for student, default avatar, active, score=0)
     const insertQuery = `
-      INSERT INTO USERS (FullName, Email, AvatarUrl, IsActive, CreatedAt, UpdatedAt, RoleID, PassWord)
-      VALUES ($1, $2, 'default-avatar.png', true, NOW(), NOW(), 3, $3)
+      INSERT INTO USERS (FullName, Email, AvatarUrl, IsActive, CreatedAt, UpdatedAt, RoleID, PassWord, score)
+      VALUES ($1, $2, 'default-avatar.png', true, NOW(), NOW(), 3, $3, 0)
     `;
     
     await pool.query(insertQuery, [

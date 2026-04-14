@@ -14,7 +14,7 @@ const ProblemsController = {
 
       const mainParams = [offset, size]; // $1 = offset, $2 = size
       let mainQuery = `SELECT
-        p.id, p.title, p.difficulty, p.time_limit, p.accept,
+        p.id, p.title, p.difficulty, p.time_limit, p.accept, p.score,
         COUNT(tc.id) as testcase_count,
         COUNT(s.id) as submission_count
         FROM Problems p
@@ -27,7 +27,7 @@ const ProblemsController = {
         mainParams.push(searchParam);
       }
       mainQuery += mainWhereClause + `
-        GROUP BY p.id, p.title, p.difficulty, p.time_limit, p.accept
+        GROUP BY p.id, p.title, p.difficulty, p.time_limit, p.accept, p.score
         ORDER BY p.id DESC
         LIMIT $2 OFFSET $1`;
 
@@ -129,8 +129,8 @@ const ProblemsController = {
       let result;
       try {
         result = await client.query(
-          `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
+          `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept, score)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
            RETURNING *`,
           [
             title.trim(),
@@ -139,7 +139,8 @@ const ProblemsController = {
             timeLimitNum,
             hints || '',
             examples || '',
-            accept !== undefined ? accept : true
+            accept !== undefined ? accept : true,
+            score !== undefined ? parseInt(score) : 0
           ]
         );
       } catch (insertError) {
@@ -164,8 +165,8 @@ const ProblemsController = {
           
           // Retry the insert
           result = await client.query(
-            `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+            `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples, accept, score)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              RETURNING *`,
             [
               title.trim(),
@@ -174,7 +175,8 @@ const ProblemsController = {
               timeLimitNum,
               hints || '',
               examples || '',
-              accept !== undefined ? accept : true
+              accept !== undefined ? accept : true,
+              score !== undefined ? parseInt(score) : 0
             ]
           );
           console.log('Insert retry successful');
@@ -205,7 +207,7 @@ const ProblemsController = {
       await client.query('BEGIN');
 
       const id = parseInt(req.params.id);
-      const { title, description, difficulty, time_limit, hints, examples, accept } = req.body;
+      const { title, description, difficulty, time_limit, hints, examples, accept, score } = req.body;
 
       // Check if problem exists
       const problemCheck = await client.query(
@@ -310,6 +312,10 @@ const ProblemsController = {
       if (accept !== undefined) {
         updates.push(`accept = $${paramIndex++}`);
         values.push(accept);
+      }
+      if (score !== undefined) {
+        updates.push(`score = $${paramIndex++}`);
+        values.push(parseInt(score));
       }
 
       if (updates.length === 0) {

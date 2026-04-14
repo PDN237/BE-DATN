@@ -4,7 +4,7 @@ const adminAuth = require('../../middleware/admin.middleware');
 async function getAllUsers(req, res) {
   try {
     const query = `
-      SELECT UserID, FullName, Email, AvatarUrl, IsActive, CreatedAt, RoleID as Role, Describe
+      SELECT UserID, FullName, Email, AvatarUrl, IsActive, CreatedAt, RoleID as Role, Describe, score, title
       FROM USERS
       ORDER BY CreatedAt DESC
     `;
@@ -30,7 +30,7 @@ async function getUserById(req, res) {
   try {
     const { id } = req.params;
     const query = `
-      SELECT *, RoleID as Role
+      SELECT *, RoleID as Role, score, title
       FROM USERS 
       WHERE UserID = $1
     `;
@@ -59,7 +59,7 @@ async function getUserById(req, res) {
 
 async function createUser(req, res) {
   try {
-    const { FullName, Email, PassWord, RoleID, IsActive } = req.body;
+    const { FullName, Email, PassWord, RoleID, IsActive, score, title } = req.body;
     if (!FullName || !Email || !PassWord || RoleID === undefined) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
@@ -72,8 +72,8 @@ async function createUser(req, res) {
     }
 
     const insertQuery = `
-      INSERT INTO USERS (FullName, Email, PassWord, RoleID, AvatarUrl, IsActive, CreatedAt, UpdatedAt)
-      VALUES ($1, $2, $3, $4, 'default-avatar.png', $5, NOW(), NOW())
+      INSERT INTO USERS (FullName, Email, PassWord, RoleID, AvatarUrl, IsActive, CreatedAt, UpdatedAt, score, title)
+      VALUES ($1, $2, $3, $4, 'default-avatar.png', $5, NOW(), NOW(), $6, $7)
       RETURNING UserID
     `;
     const resultInsert = await pool.query(insertQuery, [
@@ -81,7 +81,9 @@ async function createUser(req, res) {
       Email,
       PassWord,
       RoleID,
-      IsActive ? true : false
+      IsActive ? true : false,
+      score !== undefined ? parseInt(score) : 0,
+      title || ''
     ]);
     const insertResult = resultInsert.rows;
     res.status(201).json({ UserID: insertResult[0].userid || insertResult[0].UserID });
@@ -94,7 +96,7 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   try {
     const { id } = req.params;
-    const { FullName, Email, PassWord, RoleID, IsActive, Describe } = req.body;
+    const { FullName, Email, PassWord, RoleID, IsActive, Describe, score, title } = req.body;
 
     let updates = ['UpdatedAt = NOW()'];
     const params = [];
@@ -128,6 +130,16 @@ async function updateUser(req, res) {
     if (Describe !== undefined) {
       updates.push(`Describe = $${paramIndex}`);
       params.push(Describe);
+      paramIndex++;
+    }
+    if (score !== undefined) {
+      updates.push(`score = $${paramIndex}`);
+      params.push(parseInt(score));
+      paramIndex++;
+    }
+    if (title !== undefined) {
+      updates.push(`title = $${paramIndex}`);
+      params.push(title);
       paramIndex++;
     }
 

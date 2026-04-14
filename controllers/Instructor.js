@@ -49,7 +49,8 @@ const InstructorController = {
             Duration: l.duration || l.Duration || 0,
             OrderIndex: l.orderindex || l.OrderIndex || 0,
             Describe: l.describe || l.Describe || '',
-            Summary: l.summary || l.Summary || ''
+            Summary: l.summary || l.Summary || '',
+            score: l.score || 0
           }))
         });
       }
@@ -147,7 +148,7 @@ const InstructorController = {
   // POST /api/instructor/lessons
   createLesson: async (req, res) => {
     try {
-      const { ModuleID, Title, Type, userId } = req.body;
+      const { ModuleID, Title, Type, userId, score } = req.body;
       if (!ModuleID || !Title || !Type) {
         return res.status(400).json({ success: false, message: 'ModuleID, Title, Type required' });
       }
@@ -162,9 +163,9 @@ const InstructorController = {
       );
 
       const result = await pool.query(
-        `INSERT INTO Lessons (ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, "describe", "summary")
-         VALUES ($1, $2, $3, '', '', 0, $4, '', '') RETURNING *`,
-        [parseInt(ModuleID), Title.trim(), Type, parseInt(maxOrder.rows[0].nextorder)]
+        `INSERT INTO Lessons (ModuleID, Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, "describe", "summary", score)
+         VALUES ($1, $2, $3, '', '', 0, $4, '', '', $5) RETURNING *`,
+        [parseInt(ModuleID), Title.trim(), Type, parseInt(maxOrder.rows[0].nextorder), score !== undefined ? parseInt(score) : 0]
       );
 
       const l = result.rows[0];
@@ -196,7 +197,8 @@ const InstructorController = {
           Title: l.title, Type: l.type,
           ContentUrl: l.contenturl || '', ContentHtml: l.contenthtml || '',
           Duration: l.duration || 0, OrderIndex: l.orderindex || 0,
-          Describe: l.describe || '', Summary: l.summary || ''
+          Describe: l.describe || '', Summary: l.summary || '',
+          score: l.score || 0
         }
       });
     } catch (err) {
@@ -209,15 +211,15 @@ const InstructorController = {
   updateLesson: async (req, res) => {
     try {
       const lessonId = parseInt(req.params.id);
-      const { Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, Describe, Summary } = req.body;
+      const { Title, Type, ContentUrl, ContentHtml, Duration, OrderIndex, Describe, Summary, score } = req.body;
 
       if (!Title || !Type) return res.status(400).json({ success: false, message: 'Title and Type required' });
 
       await pool.query(
         `UPDATE Lessons 
-         SET Title=$1, Type=$2, ContentUrl=$3, ContentHtml=$4, Duration=$5, OrderIndex=$6, "describe"=$7, "summary"=$8
-         WHERE LessonID=$9`,
-        [Title, Type, ContentUrl || '', ContentHtml || '', parseInt(Duration || 0), parseInt(OrderIndex || 0), Describe || '', Summary || '', lessonId]
+         SET Title=$1, Type=$2, ContentUrl=$3, ContentHtml=$4, Duration=$5, OrderIndex=$6, "describe"=$7, "summary"=$8, score=$9
+         WHERE LessonID=$10`,
+        [Title, Type, ContentUrl || '', ContentHtml || '', parseInt(Duration || 0), parseInt(OrderIndex || 0), Describe || '', Summary || '', score !== undefined ? parseInt(score) : 0, lessonId]
       );
       res.json({ success: true, message: 'Lesson updated' });
     } catch (err) {
