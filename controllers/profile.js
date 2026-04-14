@@ -362,3 +362,49 @@ exports.updateUserScore = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };
+
+// ================================================================
+// ADD COURSE POINTS WHEN COURSE IS COMPLETED
+// ================================================================
+
+exports.addCoursePoints = async (req, res) => {
+    try {
+        const { userId, courseId } = req.body;
+
+        if (!userId || !courseId) {
+            return res.status(400).json({ success: false, message: 'Thiếu userId hoặc courseId' });
+        }
+
+        // Get course score
+        const courseResult = await pool.query(
+            'SELECT score FROM Courses WHERE CourseID = $1',
+            [parseInt(courseId)]
+        );
+
+        if (courseResult.rows.length === 0) {
+            return res.status(404).json({ success: false, message: 'Course not found' });
+        }
+
+        const courseScore = courseResult.rows[0].score || 0;
+
+        if (courseScore === 0) {
+            return res.json({ success: true, message: 'Khóa học không có điểm', pointsEarned: 0 });
+        }
+
+        // Update user score
+        await pool.query(
+            'UPDATE USERS SET score = COALESCE(score, 0) + $1 WHERE UserID = $2',
+            [courseScore, parseInt(userId)]
+        );
+
+        res.json({
+            success: true,
+            message: 'Cộng điểm khóa học thành công!',
+            pointsEarned: courseScore
+        });
+
+    } catch (err) {
+        console.error('addCoursePoints error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};

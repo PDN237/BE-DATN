@@ -14,4 +14,7 @@ router.delete('/my-courses/:id', profileController.deleteMyCourse);
 // Update user score when lesson is completed
 router.post('/update-score', profileController.updateUserScore);
 
+// Add course points when course is completed
+router.post('/add-course-points', profileController.addCoursePoints);
+
 module.exports = router;
