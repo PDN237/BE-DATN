@@ -12,8 +12,7 @@ const getAllProblems = async (req, res) => {
         title,
         difficulty,
         time_limit,
-        accept,
-        score`;
+        accept`;
         
     if (userId) {
       queryParams.push(userId);
@@ -22,13 +21,13 @@ const getAllProblems = async (req, res) => {
             WHEN EXISTS (
                 SELECT 1 FROM Submissions s 
                 WHERE s.problem_id = Problems.id 
-                  AND s.userId = $1 
+                  AND s.user_id = $1 
                   AND s.status = 'Accepted'
             ) THEN 'Solved'
             WHEN EXISTS (
                 SELECT 1 FROM Submissions s 
                 WHERE s.problem_id = Problems.id 
-                  AND s.userId = $1
+                  AND s.user_id = $1
             ) THEN 'Attempted'
             ELSE 'Not Started'
         END AS user_status`;
@@ -67,8 +66,7 @@ const getProblemById = async (req, res) => {
         time_limit,
         hints,
         examples,
-        accept,
-        score`;
+        accept`;
         
     let queryParams = [id];
     
@@ -79,13 +77,13 @@ const getProblemById = async (req, res) => {
             WHEN EXISTS (
                 SELECT 1 FROM Submissions s 
                 WHERE s.problem_id = Problems.id 
-                  AND s.userId = $2 
+                  AND s.user_id = $2 
                   AND s.status = 'Accepted'
             ) THEN 'Solved'
             WHEN EXISTS (
                 SELECT 1 FROM Submissions s 
                 WHERE s.problem_id = Problems.id 
-                  AND s.userId = $2
+                  AND s.user_id = $2
             ) THEN 'Attempted'
             ELSE 'Not Started'
         END AS user_status`;

@@ -103,16 +103,11 @@ const submitCode = async (req, res) => {
 
         for (const testCase of testCases) {
             let input = (testCase.input_data || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-            const expected = (testCase.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            const expected = (testCase.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
             
             const testCaseTimeLimit = testCase.time_limit !== null && testCase.time_limit !== undefined 
                 ? testCase.time_limit 
                 : (problem.time_limit || 2);
-
-            // Add delay between test cases to avoid rate limiting
-            if (testCases.indexOf(testCase) > 0) {
-                await new Promise(resolve => setTimeout(resolve, 2000));
-            }
     
             const judgeResult = await judgeService.runWithYepCode(
                 code,
@@ -136,39 +131,16 @@ const submitCode = async (req, res) => {
                 if (judgeResult.stderr && judgeResult.stderr.trim()) {
                     testStatus = 'Runtime Error';
                     output = judgeResult.stderr;
-                    console.error('=== SUBMIT RUNTIME ERROR ===');
-                    console.error('Problem ID:', problemId);
-                    console.error('Test Case ID:', testCase.id);
-                    console.error('Language:', language);
-                    console.error('Stderr:', judgeResult.stderr);
-                    console.error('==========================');
                 }
 
                 if (testStatus === 'Accepted') {
                     if (!judgeService.compareOutput(output, expected)) {
                         testStatus = 'Wrong Answer';
-                        console.log('=== SUBMIT WRONG ANSWER ===');
-                        console.log('Problem ID:', problemId);
-                        console.log('Test Case ID:', testCase.id);
-                        console.log('Expected:', expected);
-                        console.log('Actual:', output);
-                        console.log('==========================');
                     }
                 }
             } else {
                 testStatus = judgeResult.status || 'System Error';
                 output = judgeResult.error || 'Unknown error';
-                console.error('=== SUBMIT SYSTEM ERROR ===');
-                console.error('Problem ID:', problemId);
-                console.error('Test Case ID:', testCase.id);
-                console.error('Language:', language);
-                console.error('Time Limit:', testCaseTimeLimit);
-                console.error('Input:', input);
-                console.error('Expected:', expected);
-                console.error('Error:', judgeResult.error);
-                console.error('Error Type:', judgeResult.errorType);
-                console.error('Status:', judgeResult.status);
-                console.error('==========================');
             }
 
             await client.query(`
@@ -226,25 +198,6 @@ const submitCode = async (req, res) => {
 
         await client.query('COMMIT');
 
-        let pointsEarned = 0;
-        
-        // If submission is accepted and userId is provided, award points
-        if (finalStatus === 'Accepted' && pUserId) {
-            try {
-                const profileController = require('./profile');
-                const pointsResult = await profileController.addProblemPoints({
-                    body: { userId: pUserId, problemId: parseInt(problemId) }
-                }, { json: (data) => data, status: (code) => ({ status: code }) });
-                
-                if (pointsResult.success && pointsResult.pointsEarned > 0) {
-                    pointsEarned = pointsResult.pointsEarned;
-                }
-            } catch (pointsError) {
-                console.error('Error adding problem points:', pointsError);
-                // Don't fail the submission if points awarding fails
-            }
-        }
-
         res.json({
             success: true,
             data: {
@@ -252,7 +205,6 @@ const submitCode = async (req, res) => {
                 status: finalStatus,
                 runtime: totalExecutionTime,
                 memory: totalMemoryUsed,
-                pointsEarned: pointsEarned,
                 testcases: testResults.map(tc => ({
                     id: tc.id,
                     status: tc.status
@@ -262,14 +214,7 @@ const submitCode = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('=== SUBMIT DATABASE ERROR ===');
-        console.error('Problem ID:', problemId);
-        console.error('User ID:', pUserId);
-        console.error('Language:', language);
-        console.error('Error:', error);
-        console.error('Error Message:', error.message);
-        console.error('Error Stack:', error.stack);
-        console.error('==========================');
+        console.error('Error submitting code:', error);
         res.status(500).json({
             success: false,
             message: 'Error submitting code',
