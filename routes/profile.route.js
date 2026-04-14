@@ -17,4 +17,7 @@ router.post('/update-score', profileController.updateUserScore);
 // Add course points when course is completed
 router.post('/add-course-points', profileController.addCoursePoints);
 
+// Add problem points when problem is solved
+router.post('/add-problem-points', profileController.addProblemPoints);
+
 module.exports = router;
