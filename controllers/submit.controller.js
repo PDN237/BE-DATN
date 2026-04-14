@@ -102,8 +102,8 @@ const submitCode = async (req, res) => {
         let totalMemoryUsed = 0;
 
         for (const testCase of testCases) {
-            let input = (testCase.input_data || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-            const expected = (testCase.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
+            let input = testCase.input_data || '';
+            const expected = (testCase.expected_output || '').trim();
             
             const testCaseTimeLimit = testCase.time_limit !== null && testCase.time_limit !== undefined 
                 ? testCase.time_limit 
