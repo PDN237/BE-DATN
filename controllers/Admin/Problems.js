@@ -79,97 +79,301 @@ const ProblemsController = {
   },
 
   createProblem: async (req, res) => {
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
+
       const { title, description, difficulty, time_limit, hints, examples } = req.body;
-      if (!title || !description) {
-        return res.status(400).json({ error: 'Title and description required' });
+
+      // Enhanced validation
+      if (!title || typeof title !== 'string' || title.trim().length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Title is required and must be a non-empty string' });
       }
 
-      const result = await pool.query(
+      if (!description || typeof description !== 'string' || description.trim().length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Description is required and must be a non-empty string' });
+      }
+
+      if (title.length > 255) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Title must not exceed 255 characters' });
+      }
+
+      // Validate difficulty
+      const validDifficulties = ['Easy', 'Medium', 'Hard'];
+      if (difficulty && !validDifficulties.includes(difficulty)) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Difficulty must be one of: Easy, Medium, Hard' });
+      }
+
+      // Validate time_limit
+      const timeLimitNum = parseInt(time_limit);
+      if (isNaN(timeLimitNum) || timeLimitNum < 100 || timeLimitNum > 10000) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'Time limit must be between 100 and 10000 milliseconds' });
+      }
+
+      // Check for duplicate title
+      const duplicateCheck = await client.query(
+        `SELECT id FROM Problems WHERE title ILIKE $1`,
+        [title.trim()]
+      );
+
+      if (duplicateCheck.rows.length > 0) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({ error: 'A problem with this title already exists' });
+      }
+
+      const result = await client.query(
         `INSERT INTO Problems (title, description, difficulty, time_limit, hints, examples)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
-          title,
-          description,
-          difficulty,
-          parseInt(time_limit),
+          title.trim(),
+          description.trim(),
+          difficulty || 'Medium',
+          timeLimitNum,
           hints || '',
           examples || ''
         ]
       );
 
-      res.status(201).json({ success: true, problem: result.rows[0] });
+      await client.query('COMMIT');
+      res.status(201).json({ 
+        success: true, 
+        problem: result.rows[0],
+        message: 'Problem created successfully. Add at least 2 test cases (1 public) to make it available for users.'
+      });
     } catch (error) {
-      console.error('createProblem:', error);
-      res.status(500).json({ error: error.message });
+      await client.query('ROLLBACK');
+      console.error('createProblem ERROR:', error);
+      res.status(500).json({ error: 'Failed to create problem: ' + error.message });
+    } finally {
+      client.release();
     }
   },
 
   updateProblem: async (req, res) => {
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
+
       const id = parseInt(req.params.id);
       const { title, description, difficulty, time_limit, hints, examples } = req.body;
 
-      // Check testcase requirements
-      const tcCheck = await pool.query(
+      // Check if problem exists
+      const problemCheck = await client.query(
+        `SELECT id FROM Problems WHERE id = $1`,
+        [id]
+      );
+
+      if (problemCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Problem not found' });
+      }
+
+      // Enhanced validation
+      if (title !== undefined) {
+        if (typeof title !== 'string' || title.trim().length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Title must be a non-empty string' });
+        }
+        if (title.length > 255) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Title must not exceed 255 characters' });
+        }
+      }
+
+      if (description !== undefined) {
+        if (typeof description !== 'string' || description.trim().length === 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Description must be a non-empty string' });
+        }
+      }
+
+      // Validate difficulty if provided
+      if (difficulty !== undefined) {
+        const validDifficulties = ['Easy', 'Medium', 'Hard'];
+        if (!validDifficulties.includes(difficulty)) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Difficulty must be one of: Easy, Medium, Hard' });
+        }
+      }
+
+      // Validate time_limit if provided
+      if (time_limit !== undefined) {
+        const timeLimitNum = parseInt(time_limit);
+        if (isNaN(timeLimitNum) || timeLimitNum < 100 || timeLimitNum > 10000) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ error: 'Time limit must be between 100 and 10000 milliseconds' });
+        }
+      }
+
+      // Check for duplicate title if title is being changed
+      if (title !== undefined) {
+        const duplicateCheck = await client.query(
+          `SELECT id FROM Problems WHERE title ILIKE $1 AND id != $2`,
+          [title.trim(), id]
+        );
+
+        if (duplicateCheck.rows.length > 0) {
+          await client.query('ROLLBACK');
+          return res.status(409).json({ error: 'A problem with this title already exists' });
+        }
+      }
+
+      // Check testcase status (warning only, not blocking)
+      const tcCheck = await client.query(
         `SELECT COUNT(*) as total, SUM(CASE WHEN is_hidden = false THEN 1 ELSE 0 END) as public_count
          FROM TestCases WHERE problem_id = $1`,
         [id]
       );
       const tc = tcCheck.rows[0];
-      if (parseInt(tc.total || 0) < 2) {
-        return res.status(400).json({ error: 'Problem must have at least 2 test cases' });
+      const totalTC = parseInt(tc.total || 0);
+      const publicTC = parseInt(tc.public_count || 0);
+
+      // Build dynamic update query
+      const updates = [];
+      const values = [];
+      let paramIndex = 1;
+
+      if (title !== undefined) {
+        updates.push(`title = $${paramIndex++}`);
+        values.push(title.trim());
       }
-      if (parseInt(tc.public_count || 0) < 1) {
-        return res.status(400).json({ error: 'Problem must have at least 1 public test case (is_hidden = false)' });
+      if (description !== undefined) {
+        updates.push(`description = $${paramIndex++}`);
+        values.push(description.trim());
+      }
+      if (difficulty !== undefined) {
+        updates.push(`difficulty = $${paramIndex++}`);
+        values.push(difficulty);
+      }
+      if (time_limit !== undefined) {
+        updates.push(`time_limit = $${paramIndex++}`);
+        values.push(parseInt(time_limit));
+      }
+      if (hints !== undefined) {
+        updates.push(`hints = $${paramIndex++}`);
+        values.push(hints || '');
+      }
+      if (examples !== undefined) {
+        updates.push(`examples = $${paramIndex++}`);
+        values.push(examples || '');
       }
 
-      await pool.query(
-        `UPDATE Problems 
-         SET title = $2, description = $3, difficulty = $4, 
-             time_limit = $5, hints = $6, examples = $7
-         WHERE id = $1`,
-        [
-          id,
-          title,
-          description,
-          difficulty,
-          parseInt(time_limit),
-          hints || '',
-          examples || ''
-        ]
-      );
+      if (updates.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ error: 'No fields to update' });
+      }
 
-      res.json({ success: true, message: 'Problem updated' });
+      values.push(id);
+      const query = `UPDATE Problems SET ${updates.join(', ')} WHERE id = $${paramIndex}`;
+
+      await client.query(query, values);
+      await client.query('COMMIT');
+
+      const response = { 
+        success: true, 
+        message: 'Problem updated successfully'
+      };
+
+      // Add warning if test cases are insufficient
+      if (totalTC < 2 || publicTC < 1) {
+        response.warning = 'Problem has insufficient test cases. Add at least 2 test cases (1 public) to make it available for users.';
+        response.testcaseStatus = { total: totalTC, public: publicTC };
+      }
+
+      res.json(response);
     } catch (error) {
-      console.error('updateProblem:', error);
-      res.status(500).json({ error: error.message });
+      await client.query('ROLLBACK');
+      console.error('updateProblem ERROR:', error);
+      res.status(500).json({ error: 'Failed to update problem: ' + error.message });
+    } finally {
+      client.release();
     }
   },
 
   deleteProblem: async (req, res) => {
+    const client = await pool.connect();
     try {
+      await client.query('BEGIN');
+
       const id = parseInt(req.params.id);
 
+      // Check if problem exists
+      const problemCheck = await client.query(
+        `SELECT id, title FROM Problems WHERE id = $1`,
+        [id]
+      );
+
+      if (problemCheck.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Problem not found' });
+      }
+
+      const problemTitle = problemCheck.rows[0].title;
+
       // Check submissions
-      const subCheck = await pool.query(
+      const subCheck = await client.query(
         `SELECT COUNT(*) as count FROM Submissions WHERE problem_id = $1`,
         [id]
       );
-      if (parseInt(subCheck.rows[0].count) > 0) {
-        return res.status(400).json({ error: 'Cannot delete problem with submissions' });
+      const submissionCount = parseInt(subCheck.rows[0].count || 0);
+
+      if (submissionCount > 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: `Cannot delete problem with ${submissionCount} submission(s). Please delete submissions first or archive the problem instead.` 
+        });
       }
 
-      // Delete testcases first
-      await pool.query(`DELETE FROM TestCases WHERE problem_id = $1`, [id]);
-      // Delete problem
-      await pool.query(`DELETE FROM Problems WHERE id = $1`, [id]);
+      // Check test cases count for info
+      const tcCheck = await client.query(
+        `SELECT COUNT(*) as count FROM TestCases WHERE problem_id = $1`,
+        [id]
+      );
+      const testcaseCount = parseInt(tcCheck.rows[0].count || 0);
 
-      res.json({ success: true, message: 'Problem deleted' });
+      // Cascade delete in proper order:
+      // 1. Delete Results (via testcases - though should be none if no submissions)
+      await client.query(
+        `DELETE FROM Results r
+         USING TestCases tc
+         WHERE r.testcase_id = tc.id AND tc.problem_id = $1`,
+        [id]
+      );
+
+      // 2. Delete TestCases
+      await client.query(`DELETE FROM TestCases WHERE problem_id = $1`, [id]);
+
+      // 3. Delete Problem
+      const deleteResult = await client.query(`DELETE FROM Problems WHERE id = $1 RETURNING id`, [id]);
+
+      if (deleteResult.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(404).json({ error: 'Problem not found' });
+      }
+
+      await client.query('COMMIT');
+
+      res.json({ 
+        success: true, 
+        message: `Problem "${problemTitle}" deleted successfully`,
+        deleted: {
+          problemId: id,
+          problemTitle: problemTitle,
+          testcasesDeleted: testcaseCount
+        }
+      });
     } catch (error) {
-      console.error('deleteProblem:', error);
-      res.status(500).json({ error: error.message });
+      await client.query('ROLLBACK');
+      console.error('deleteProblem ERROR:', error);
+      res.status(500).json({ error: 'Failed to delete problem: ' + error.message });
+    } finally {
+      client.release();
     }
   },
 
