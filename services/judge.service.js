@@ -156,7 +156,8 @@ async function runWithJudge0(code, input, language = 'python', options = {}) {
     const languageId = getLanguageId(language);
     
     // Lấy timeLimit từ options (hỗ trợ giới hạn động từ testcase)
-    const timeLimit = options.timeLimit !== undefined ? options.timeLimit : 2;
+    // Chuyển từ milliseconds sang seconds cho Judge0 API (max 20s)
+    const timeLimit = options.timeLimit !== undefined ? options.timeLimit / 1000 : 2;
     
     // Chỉ set memory_limit khi được truyền vào, không dùng default
     const payload = {
