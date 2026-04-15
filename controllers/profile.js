@@ -1,5 +1,40 @@
 const pool = require('../db');
 
+// Helper function to calculate title based on score
+function calculateTitle(score) {
+    if (score >= 10000) return 'Kim Cương';
+    if (score >= 5000) return 'Bạch Kim';
+    if (score >= 3000) return 'Vàng';
+    if (score >= 1500) return 'Bạc';
+    if (score >= 500) return 'Đồng';
+    return 'Chưa có';
+}
+
+// Helper function to update user title based on current score
+async function updateUserTitle(userId) {
+    try {
+        const result = await pool.query(
+            'SELECT score FROM USERS WHERE UserID = $1',
+            [parseInt(userId)]
+        );
+        
+        if (result.rows.length === 0) return null;
+        
+        const currentScore = result.rows[0].score || 0;
+        const newTitle = calculateTitle(currentScore);
+        
+        await pool.query(
+            'UPDATE USERS SET title = $1 WHERE UserID = $2',
+            [newTitle, parseInt(userId)]
+        );
+        
+        return newTitle;
+    } catch (err) {
+        console.error('updateUserTitle error:', err);
+        return null;
+    }
+}
+
 exports.getProfile = async (req, res) => {
     try {
         const userId = parseInt(req.query.userId) || 1; 
@@ -351,10 +386,22 @@ exports.updateUserScore = async (req, res) => {
             [lessonScore, parseInt(userId)]
         );
 
+        // Auto-update title based on new score
+        const newTitle = await updateUserTitle(userId);
+
+        // Get updated score for response
+        const scoreResult = await pool.query(
+            'SELECT score FROM USERS WHERE UserID = $1',
+            [parseInt(userId)]
+        );
+        const currentScore = scoreResult.rows[0]?.score || 0;
+
         res.json({
             success: true,
             message: 'Cập nhật điểm thành công!',
-            pointsEarned: lessonScore
+            pointsEarned: lessonScore,
+            newScore: currentScore,
+            newTitle: newTitle
         });
 
     } catch (err) {
@@ -397,10 +444,22 @@ exports.addCoursePoints = async (req, res) => {
             [courseScore, parseInt(userId)]
         );
 
+        // Auto-update title based on new score
+        const newTitle = await updateUserTitle(userId);
+
+        // Get updated score for response
+        const scoreResult = await pool.query(
+            'SELECT score FROM USERS WHERE UserID = $1',
+            [parseInt(userId)]
+        );
+        const currentScore = scoreResult.rows[0]?.score || 0;
+
         res.json({
             success: true,
             message: 'Cộng điểm khóa học thành công!',
-            pointsEarned: courseScore
+            pointsEarned: courseScore,
+            newScore: currentScore,
+            newTitle: newTitle
         });
 
     } catch (err) {
@@ -454,10 +513,22 @@ exports.addProblemPoints = async (req, res) => {
             [problemScore, parseInt(userId)]
         );
 
+        // Auto-update title based on new score
+        const newTitle = await updateUserTitle(userId);
+
+        // Get updated score for response
+        const scoreResult = await pool.query(
+            'SELECT score FROM USERS WHERE UserID = $1',
+            [parseInt(userId)]
+        );
+        const currentScore = scoreResult.rows[0]?.score || 0;
+
         res.json({
             success: true,
             message: 'Cộng điểm problem thành công!',
-            pointsEarned: problemScore
+            pointsEarned: problemScore,
+            newScore: currentScore,
+            newTitle: newTitle
         });
 
     } catch (err) {
