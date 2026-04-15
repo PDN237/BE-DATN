@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const profileController = require('../controllers/profile');
+const avatarController = require('../controllers/avatar');
 
 router.get('/', profileController.getProfile);
 router.put('/', profileController.updateProfile);
@@ -19,5 +20,10 @@ router.post('/add-course-points', profileController.addCoursePoints);
 
 // Add problem points when problem is solved
 router.post('/add-problem-points', profileController.addProblemPoints);
+
+// Avatar routes
+router.get('/avatar/available', avatarController.getAvailableAvatars);
+router.get('/avatar', avatarController.getUserAvatar);
+router.put('/avatar', avatarController.updateUserAvatar);
 
 module.exports = router;
