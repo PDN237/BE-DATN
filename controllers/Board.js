@@ -17,26 +17,17 @@ exports.getLeaderboard = async (req, res) => {
                 (SELECT COUNT(DISTINCT s.problem_id)
                  FROM Submissions s
                  WHERE s.UserID = u.UserID AND s.status = 'Accepted') as solved_problems,
-                -- Count completed courses (courses where user completed all lessons)
-                (SELECT COUNT(DISTINCT c.CourseID)
-                 FROM Courses c
-                 JOIN Modules m ON m.CourseID = c.CourseID
-                 JOIN Lessons l ON l.ModuleID = m.ModuleID
-                 LEFT JOIN UserProgress up ON up.LessonID = l.LessonID AND up.UserID = u.UserID
-                 WHERE EXISTS (
-                     SELECT 1 FROM Enrollments e WHERE e.CourseID = c.CourseID AND e.UserID = u.UserID
-                 )
-                 GROUP BY c.CourseID
-                 HAVING COUNT(DISTINCT CASE WHEN up.Status = 'completed' THEN up.LessonID END) = 
-                        (SELECT COUNT(*) FROM Lessons l2 JOIN Modules m2 ON l2.ModuleID = m.ModuleID WHERE m2.CourseID = c.CourseID)
-                ) as completed_courses
+                -- Count completed courses (courses where user is enrolled)
+                (SELECT COUNT(DISTINCT e.CourseID)
+                 FROM Enrollments e
+                 WHERE e.UserID = u.UserID) as enrolled_courses
             FROM USERS u
             WHERE u.RoleID = 3
             ORDER BY u.score DESC, solved_problems DESC
         `;
 
         const result = await pool.query(query);
-        
+
         // Add rank to each user
         const leaderboard = result.rows.map((row, index) => ({
             rank: index + 1,
@@ -47,7 +38,7 @@ exports.getLeaderboard = async (req, res) => {
             score: row.score || 0,
             title: row.title || 'Chưa có',
             solved_problems: parseInt(row.solved_problems) || 0,
-            completed_courses: parseInt(row.completed_courses) || 0
+            completed_courses: parseInt(row.enrolled_courses) || 0
         }));
 
         res.json({
