@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const profileController = require('../controllers/profile');
 const avatarController = require('../controllers/avatar');
+const boardController = require('../controllers/Board');
 
 router.get('/', profileController.getProfile);
 router.put('/', profileController.updateProfile);
@@ -25,5 +26,8 @@ router.post('/add-problem-points', profileController.addProblemPoints);
 router.get('/avatar/available', avatarController.getAvailableAvatars);
 router.get('/avatar', avatarController.getUserAvatar);
 router.put('/avatar', avatarController.updateUserAvatar);
+
+// Leaderboard route
+router.get('/leaderboard', boardController.getLeaderboard);
 
 module.exports = router;
