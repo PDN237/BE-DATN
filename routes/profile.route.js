@@ -20,7 +20,4 @@ router.post('/add-course-points', profileController.addCoursePoints);
 // Add problem points when problem is solved
 router.post('/add-problem-points', profileController.addProblemPoints);
 
-// Update avatar URL
-router.post('/avatar', profileController.updateAvatar);
-
 module.exports = router;
