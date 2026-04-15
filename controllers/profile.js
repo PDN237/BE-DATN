@@ -465,3 +465,39 @@ exports.addProblemPoints = async (req, res) => {
         res.status(500).json({ success: false, message: 'Lỗi server' });
     }
 };
+
+// ================================================================
+// UPDATE AVATAR URL
+// ================================================================
+
+exports.updateAvatar = async (req, res) => {
+    try {
+        const { userId, avatarUrl } = req.body;
+
+        if (!userId || !avatarUrl) {
+            return res.status(400).json({ success: false, message: 'Thiếu userId hoặc avatarUrl' });
+        }
+
+        // Validate URL format
+        try {
+            new URL(avatarUrl);
+        } catch (e) {
+            return res.status(400).json({ success: false, message: 'avatarUrl không hợp lệ' });
+        }
+
+        // Update avatar URL in database
+        await pool.query(
+            'UPDATE USERS SET AvatarUrl = $1 WHERE UserID = $2',
+            [avatarUrl, parseInt(userId)]
+        );
+
+        res.json({
+            success: true,
+            message: 'Cập nhật avatar thành công!'
+        });
+
+    } catch (err) {
+        console.error('updateAvatar error:', err);
+        res.status(500).json({ success: false, message: 'Lỗi server' });
+    }
+};
