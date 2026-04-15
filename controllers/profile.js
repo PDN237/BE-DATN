@@ -37,12 +37,15 @@ async function updateUserTitle(userId) {
 
 exports.getProfile = async (req, res) => {
     try {
-        const userId = parseInt(req.query.userId) || 1; 
-        
-        // 1. Get basic info
+        const userId = parseInt(req.query.userId) || 1;
+
+        // 1. Recalculate title based on current score
+        await updateUserTitle(userId);
+
+        // 2. Get basic info
         const userQuery = `
             SELECT UserID, FullName, Email, AvatarUrl, Phone, Location, Gender, BirthYear, Describe, RoleID, score, title
-            FROM USERS 
+            FROM USERS
             WHERE UserID = $1
         `;
         const userResult = await pool.query(userQuery, [userId]);
