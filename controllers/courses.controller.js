@@ -350,18 +350,22 @@ module.exports = {
       const { courseId } = req.params;
       const userId = parseInt(req.query.userId) || 1;
 
-      // Get lesson statistics
+      console.log('getCourseStatistics called with courseId:', courseId, 'userId:', userId);
+
+      // Get lesson statistics - simplified query with proper UserProgress join
       const lessonStats = await pool.query(
         `SELECT
           COUNT(DISTINCT l.LessonID) as totalLessons,
           COUNT(DISTINCT CASE WHEN up.Status = 'completed' THEN l.LessonID END) as completedLessons
         FROM Lessons l
         JOIN Modules m ON l.ModuleID = m.ModuleID
-        JOIN Courses c ON m.CourseID = c.CourseID
-        LEFT JOIN UserProgress up ON up.LessonID = l.LessonID AND up.UserID = $2
-        WHERE c.CourseID = $1`,
+        LEFT JOIN UserProgress up ON l.LessonID = up.LessonID AND up.UserID = $2
+        WHERE m.CourseID = $1`,
         [parseInt(courseId), userId]
-      );
+      ).catch(err => {
+        console.error('Lesson stats query error:', err);
+        return { rows: [{ totalLessons: 0, completedLessons: 0 }] };
+      });
 
       // Get rating statistics
       const ratingStats = await pool.query(
@@ -371,7 +375,10 @@ module.exports = {
         FROM Comments
         WHERE CourseID = $1`,
         [parseInt(courseId)]
-      );
+      ).catch(err => {
+        console.error('Rating stats query error:', err);
+        return { rows: [{ totalRatings: 0, averageRating: 0 }] };
+      });
 
       const lessonData = lessonStats.rows[0] || { totalLessons: 0, completedLessons: 0 };
       const ratingData = ratingStats.rows[0] || { totalRatings: 0, averageRating: 0 };
@@ -381,6 +388,8 @@ module.exports = {
       const totalRatings = parseInt(ratingData.totalRatings || 0);
       const averageRating = parseFloat(ratingData.averageRating || 0).toFixed(1);
       const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+      console.log('Statistics result:', { totalLessons, completedLessons, progress, totalRatings, averageRating });
 
       res.json({
         totalLessons,
