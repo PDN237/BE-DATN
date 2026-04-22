@@ -259,33 +259,29 @@ module.exports = {
   getComments: async (req, res) => {
     try {
       const { courseId } = req.params;
+      console.log('getComments called with courseId:', courseId);
+
+      // First try to get comments without JOIN to debug
       const result = await pool.query(
-        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
-                u.fullname, u.avatarurl, u.username
-         FROM Comments c
-         LEFT JOIN Users u ON c.userid = u.userid
-         WHERE c.courseid = $1
-         ORDER BY c.createdat DESC`,
+        `SELECT commentid, userid, courseid, content, rating, createdat
+         FROM Comments
+         WHERE courseid = $1
+         ORDER BY createdat DESC`,
         [parseInt(courseId)]
       );
 
+      console.log('getComments query result rows:', result.rows.length);
+
       const comments = result.rows.map(row => {
-        const userId = row.userid;
-        const fullName = row.fullname;
-        const username = row.username;
-
-        // Use Username if FullName is not available, or use a default
-        const displayName = fullName || username || 'Người dùng';
-
         return {
           commentId: row.commentid,
-          userId: userId,
+          userId: row.userid,
           courseId: row.courseid,
           content: row.content,
           rating: row.rating,
           createdAt: row.createdat,
-          userName: displayName,
-          avatarUrl: row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+          userName: `User ${row.userid}`,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
         };
       });
 
