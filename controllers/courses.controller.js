@@ -260,35 +260,36 @@ module.exports = {
     try {
       const { courseId } = req.params;
       const result = await pool.query(
-        `SELECT c.CommentID, c.UserID, c.CourseID, c.Content, c.Rating, c.CreatedAt,
-                u.FullName, u.AvatarUrl, u.Username
+        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
+                u.fullname, u.avatarurl, u.username
          FROM Comments c
-         LEFT JOIN Users u ON c.UserID = u.UserID
-         WHERE c.CourseID = $1
-         ORDER BY c.CreatedAt DESC`,
+         LEFT JOIN Users u ON c.userid = u.userid
+         WHERE c.courseid = $1
+         ORDER BY c.createdat DESC`,
         [parseInt(courseId)]
       );
 
       const comments = result.rows.map(row => {
-        const userId = row.userid || row.UserID;
-        const fullName = row.fullname || row.FullName;
-        const username = row.username || row.Username;
+        const userId = row.userid;
+        const fullName = row.fullname;
+        const username = row.username;
 
         // Use Username if FullName is not available, or use a default
         const displayName = fullName || username || 'Người dùng';
 
         return {
-          commentId: row.commentid || row.CommentID,
+          commentId: row.commentid,
           userId: userId,
-          courseId: row.courseid || row.CourseID,
-          content: row.content || row.Content,
-          rating: row.rating || row.Rating,
-          createdAt: row.createdat || row.CreatedAt,
+          courseId: row.courseid,
+          content: row.content,
+          rating: row.rating,
+          createdAt: row.createdat,
           userName: displayName,
-          avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+          avatarUrl: row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
         };
       });
 
+      console.log('getComments returning:', comments.length, 'comments');
       res.json(comments);
     } catch (error) {
       console.error('getComments error:', error);
@@ -344,36 +345,37 @@ module.exports = {
     try {
       const { courseId } = req.params;
       const result = await pool.query(
-        `SELECT c.CommentID, c.UserID, c.CourseID, c.Content, c.Rating, c.CreatedAt,
-                u.FullName, u.AvatarUrl, u.Username
+        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
+                u.fullname, u.avatarurl, u.username
          FROM Comments c
-         LEFT JOIN Users u ON c.UserID = u.UserID
-         WHERE c.CourseID = $1
-         ORDER BY c.Rating DESC, c.CreatedAt DESC
+         LEFT JOIN Users u ON c.userid = u.userid
+         WHERE c.courseid = $1
+         ORDER BY c.rating DESC, c.createdat DESC
          LIMIT 3`,
         [parseInt(courseId)]
       );
 
       const comments = result.rows.map(row => {
-        const userId = row.userid || row.UserID;
-        const fullName = row.fullname || row.FullName;
-        const username = row.username || row.Username;
+        const userId = row.userid;
+        const fullName = row.fullname;
+        const username = row.username;
 
         // Use Username if FullName is not available, or use a default
         const displayName = fullName || username || 'Người dùng';
 
         return {
-          commentId: row.commentid || row.CommentID,
+          commentId: row.commentid,
           userId: userId,
-          courseId: row.courseid || row.CourseID,
-          content: row.content || row.Content,
-          rating: row.rating || row.Rating,
-          createdAt: row.createdat || row.CreatedAt,
+          courseId: row.courseid,
+          content: row.content,
+          rating: row.rating,
+          createdAt: row.createdat,
           userName: displayName,
-          avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+          avatarUrl: row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
         };
       });
 
+      console.log('getTopComments returning:', comments.length, 'comments');
       res.json(comments);
     } catch (error) {
       console.error('getTopComments error:', error);
