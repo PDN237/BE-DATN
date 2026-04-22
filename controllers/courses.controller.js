@@ -298,7 +298,7 @@ module.exports = {
         'SELECT COUNT(CASE WHEN Status = \'completed\' THEN 1 END) as completed, COUNT(*) as total FROM UserProgress WHERE UserID = $1',
         [userId]
       );
-      
+
       const data = result.rows[0] || { completed: 0, total: 0 };
       const completed = parseInt(data.completed || 0);
       const total = parseInt(data.total || 0);
@@ -310,6 +310,94 @@ module.exports = {
       });
     } catch (error) {
       res.json({ percentage: 0, completed: 0, total: 0 });
+    }
+  },
+
+  getTopComments: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const result = await pool.query(
+        `SELECT c.CommentID, c.UserID, c.CourseID, c.Content, c.Rating, c.CreatedAt,
+                u.FullName, u.AvatarUrl
+         FROM Comments c
+         LEFT JOIN Users u ON c.UserID = u.UserID
+         WHERE c.CourseID = $1
+         ORDER BY c.Rating DESC, c.CreatedAt DESC
+         LIMIT 3`,
+        [parseInt(courseId)]
+      );
+
+      const comments = result.rows.map(row => ({
+        commentId: row.commentid || row.CommentID,
+        userId: row.userid || row.UserID,
+        courseId: row.courseid || row.CourseID,
+        content: row.content || row.Content,
+        rating: row.rating || row.Rating,
+        createdAt: row.createdat || row.CreatedAt,
+        userName: row.fullname || row.FullName || 'Người dùng',
+        avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid || row.UserID}`
+      }));
+
+      res.json(comments);
+    } catch (error) {
+      console.error('getTopComments error:', error);
+      res.json([]);
+    }
+  },
+
+  getCourseStatistics: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const userId = parseInt(req.query.userId) || 1;
+
+      // Get lesson statistics
+      const lessonStats = await pool.query(
+        `SELECT
+          COUNT(DISTINCT l.LessonID) as totalLessons,
+          COUNT(DISTINCT CASE WHEN up.Status = 'completed' THEN l.LessonID END) as completedLessons
+        FROM Lessons l
+        JOIN Modules m ON l.ModuleID = m.ModuleID
+        JOIN Courses c ON m.CourseID = c.CourseID
+        LEFT JOIN UserProgress up ON up.LessonID = l.LessonID AND up.UserID = $2
+        WHERE c.CourseID = $1`,
+        [parseInt(courseId), userId]
+      );
+
+      // Get rating statistics
+      const ratingStats = await pool.query(
+        `SELECT
+          COUNT(*) as totalRatings,
+          AVG(Rating) as averageRating
+        FROM Comments
+        WHERE CourseID = $1`,
+        [parseInt(courseId)]
+      );
+
+      const lessonData = lessonStats.rows[0] || { totalLessons: 0, completedLessons: 0 };
+      const ratingData = ratingStats.rows[0] || { totalRatings: 0, averageRating: 0 };
+
+      const totalLessons = parseInt(lessonData.totalLessons || 0);
+      const completedLessons = parseInt(lessonData.completedLessons || 0);
+      const totalRatings = parseInt(ratingData.totalRatings || 0);
+      const averageRating = parseFloat(ratingData.averageRating || 0).toFixed(1);
+      const progress = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+
+      res.json({
+        totalLessons,
+        completedLessons,
+        progress,
+        totalRatings,
+        averageRating
+      });
+    } catch (error) {
+      console.error('getCourseStatistics error:', error);
+      res.json({
+        totalLessons: 0,
+        completedLessons: 0,
+        progress: 0,
+        totalRatings: 0,
+        averageRating: 0
+      });
     }
   }
 };
