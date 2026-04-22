@@ -260,11 +260,38 @@ module.exports = {
     try {
       const { courseId } = req.params;
       const result = await pool.query(
-        'SELECT * FROM Comments WHERE CourseID = $1 ORDER BY CreatedAt DESC',
+        `SELECT c.CommentID, c.UserID, c.CourseID, c.Content, c.Rating, c.CreatedAt,
+                u.FullName, u.AvatarUrl, u.Username
+         FROM Comments c
+         LEFT JOIN Users u ON c.UserID = u.UserID
+         WHERE c.CourseID = $1
+         ORDER BY c.CreatedAt DESC`,
         [parseInt(courseId)]
       );
-      res.json(result.rows);
+
+      const comments = result.rows.map(row => {
+        const userId = row.userid || row.UserID;
+        const fullName = row.fullname || row.FullName;
+        const username = row.username || row.Username;
+
+        // Use Username if FullName is not available, or use a default
+        const displayName = fullName || username || 'Người dùng';
+
+        return {
+          commentId: row.commentid || row.CommentID,
+          userId: userId,
+          courseId: row.courseid || row.CourseID,
+          content: row.content || row.Content,
+          rating: row.rating || row.Rating,
+          createdAt: row.createdat || row.CreatedAt,
+          userName: displayName,
+          avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+        };
+      });
+
+      res.json(comments);
     } catch (error) {
+      console.error('getComments error:', error);
       res.json([]);
     }
   },
@@ -318,7 +345,7 @@ module.exports = {
       const { courseId } = req.params;
       const result = await pool.query(
         `SELECT c.CommentID, c.UserID, c.CourseID, c.Content, c.Rating, c.CreatedAt,
-                u.FullName, u.AvatarUrl
+                u.FullName, u.AvatarUrl, u.Username
          FROM Comments c
          LEFT JOIN Users u ON c.UserID = u.UserID
          WHERE c.CourseID = $1
@@ -327,16 +354,25 @@ module.exports = {
         [parseInt(courseId)]
       );
 
-      const comments = result.rows.map(row => ({
-        commentId: row.commentid || row.CommentID,
-        userId: row.userid || row.UserID,
-        courseId: row.courseid || row.CourseID,
-        content: row.content || row.Content,
-        rating: row.rating || row.Rating,
-        createdAt: row.createdat || row.CreatedAt,
-        userName: row.fullname || row.FullName || 'Người dùng',
-        avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid || row.UserID}`
-      }));
+      const comments = result.rows.map(row => {
+        const userId = row.userid || row.UserID;
+        const fullName = row.fullname || row.FullName;
+        const username = row.username || row.Username;
+
+        // Use Username if FullName is not available, or use a default
+        const displayName = fullName || username || 'Người dùng';
+
+        return {
+          commentId: row.commentid || row.CommentID,
+          userId: userId,
+          courseId: row.courseid || row.CourseID,
+          content: row.content || row.Content,
+          rating: row.rating || row.Rating,
+          createdAt: row.createdat || row.CreatedAt,
+          userName: displayName,
+          avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+        };
+      });
 
       res.json(comments);
     } catch (error) {
@@ -404,6 +440,36 @@ module.exports = {
         totalLessons: 0,
         completedLessons: 0,
         progress: 0,
+        totalRatings: 0,
+        averageRating: 0
+      });
+    }
+  },
+
+  getRatingStatistics: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+
+      const result = await pool.query(
+        `SELECT
+          COUNT(*) as totalRatings,
+          AVG(Rating) as averageRating
+        FROM Comments
+        WHERE CourseID = $1`,
+        [parseInt(courseId)]
+      );
+
+      const data = result.rows[0] || { totalRatings: 0, averageRating: 0 };
+      const totalRatings = parseInt(data.totalRatings || 0);
+      const averageRating = parseFloat(data.averageRating || 0).toFixed(1);
+
+      res.json({
+        totalRatings,
+        averageRating
+      });
+    } catch (error) {
+      console.error('getRatingStatistics error:', error);
+      res.json({
         totalRatings: 0,
         averageRating: 0
       });
