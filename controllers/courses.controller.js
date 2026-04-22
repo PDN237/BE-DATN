@@ -261,23 +261,18 @@ module.exports = {
       const { courseId } = req.params;
       console.log('getComments called with courseId:', courseId);
 
-      // Get comments with JOIN to Users table for names and avatars
+      // Get comments without JOIN first to ensure data displays
       const result = await pool.query(
-        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
-                u.username, u.fullname, u.avatarurl
-         FROM Comments c
-         LEFT JOIN Users u ON c.userid = u.userid
-         WHERE c.courseid = $1
-         ORDER BY c.createdat DESC`,
+        `SELECT commentid, userid, courseid, content, rating, createdat
+         FROM Comments
+         WHERE courseid = $1
+         ORDER BY createdat DESC`,
         [parseInt(courseId)]
       );
 
       console.log('getComments query result rows:', result.rows.length);
 
       const comments = result.rows.map(row => {
-        const displayName = row.fullname || row.username || `User ${row.userid}`;
-        const avatarUrl = row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`;
-
         return {
           commentId: row.commentid,
           userId: row.userid,
@@ -285,8 +280,8 @@ module.exports = {
           content: row.content,
           rating: row.rating,
           createdAt: row.createdat,
-          userName: displayName,
-          avatarUrl: avatarUrl
+          userName: `User ${row.userid}`,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
         };
       });
 
@@ -349,14 +344,12 @@ module.exports = {
       const { courseId } = req.params;
       console.log('getTopComments called with courseId:', courseId);
 
-      // Get comments with JOIN to Users table for names and avatars
+      // Get comments without JOIN first to ensure data displays
       const result = await pool.query(
-        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
-                u.username, u.fullname, u.avatarurl
-         FROM Comments c
-         LEFT JOIN Users u ON c.userid = u.userid
-         WHERE c.courseid = $1
-         ORDER BY c.rating DESC, c.createdat DESC
+        `SELECT commentid, userid, courseid, content, rating, createdat
+         FROM Comments
+         WHERE courseid = $1
+         ORDER BY rating DESC, createdat DESC
          LIMIT 3`,
         [parseInt(courseId)]
       );
@@ -364,9 +357,6 @@ module.exports = {
       console.log('getTopComments query result rows:', result.rows.length);
 
       const comments = result.rows.map(row => {
-        const displayName = row.fullname || row.username || `User ${row.userid}`;
-        const avatarUrl = row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`;
-
         return {
           commentId: row.commentid,
           userId: row.userid,
@@ -374,8 +364,8 @@ module.exports = {
           content: row.content,
           rating: row.rating,
           createdAt: row.createdat,
-          userName: displayName,
-          avatarUrl: avatarUrl
+          userName: `User ${row.userid}`,
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
         };
       });
 
