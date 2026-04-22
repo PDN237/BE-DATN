@@ -15,7 +15,7 @@ router.get('/courses/:courseId/progress', coursesController.getCourseProgress);
 
 // Legacy
 router.post('/progress', coursesController.updateProgress);
-router.get('/courses/:courseId/statistics', coursesController.getCourseStatistics);
+router.get('/:courseId/statistics', coursesController.getCourseStatistics);
 router.get('/user/progress', coursesController.getUserProgress);
 
 module.exports = router;
