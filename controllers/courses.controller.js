@@ -299,22 +299,24 @@ module.exports = {
 
   addComment: async (req, res) => {
     try {
-      const { content, rating } = req.body;
+      const { content, rating, userId } = req.body;
       const { courseId } = req.params;
-      const userId = 1;
-      
+
+      console.log('addComment called with:', { userId, courseId, content, rating });
+
       await pool.query(
-        'INSERT INTO Comments (UserID, CourseID, Content, Rating) VALUES ($1, $2, $3, $4)',
+        'INSERT INTO Comments (userid, courseid, content, rating) VALUES ($1, $2, $3, $4)',
         [
-          userId,
+          parseInt(userId) || 1,
           parseInt(courseId),
-          content,
+          content || '',
           parseInt(rating)
         ]
       );
-      
+
       res.json({ success: true });
     } catch (error) {
+      console.error('addComment error:', error);
       res.status(500).json({ error: error.message });
     }
   },
