@@ -261,18 +261,21 @@ module.exports = {
       const { courseId } = req.params;
       console.log('getComments called with courseId:', courseId);
 
-      // First try to get comments without JOIN to debug
+      // Get comments with JOIN to Users table for names
       const result = await pool.query(
-        `SELECT commentid, userid, courseid, content, rating, createdat
-         FROM Comments
-         WHERE courseid = $1
-         ORDER BY createdat DESC`,
+        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
+                u.username, u.fullname
+         FROM Comments c
+         LEFT JOIN Users u ON c.userid = u.userid
+         WHERE c.courseid = $1
+         ORDER BY c.createdat DESC`,
         [parseInt(courseId)]
       );
 
       console.log('getComments query result rows:', result.rows.length);
 
       const comments = result.rows.map(row => {
+        const displayName = row.fullname || row.username || `User ${row.userid}`;
         return {
           commentId: row.commentid,
           userId: row.userid,
@@ -280,7 +283,7 @@ module.exports = {
           content: row.content,
           rating: row.rating,
           createdAt: row.createdat,
-          userName: `User ${row.userid}`,
+          userName: displayName,
           avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
         };
       });
@@ -342,9 +345,11 @@ module.exports = {
   getTopComments: async (req, res) => {
     try {
       const { courseId } = req.params;
+      console.log('getTopComments called with courseId:', courseId);
+
       const result = await pool.query(
         `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
-                u.fullname, u.avatarurl, u.username
+                u.username, u.fullname
          FROM Comments c
          LEFT JOIN Users u ON c.userid = u.userid
          WHERE c.courseid = $1
@@ -353,23 +358,19 @@ module.exports = {
         [parseInt(courseId)]
       );
 
+      console.log('getTopComments query result rows:', result.rows.length);
+
       const comments = result.rows.map(row => {
-        const userId = row.userid;
-        const fullName = row.fullname;
-        const username = row.username;
-
-        // Use Username if FullName is not available, or use a default
-        const displayName = fullName || username || 'Người dùng';
-
+        const displayName = row.fullname || row.username || `User ${row.userid}`;
         return {
           commentId: row.commentid,
-          userId: userId,
+          userId: row.userid,
           courseId: row.courseid,
           content: row.content,
           rating: row.rating,
           createdAt: row.createdat,
           userName: displayName,
-          avatarUrl: row.avatarurl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userId}`
+          avatarUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
         };
       });
 
@@ -449,19 +450,22 @@ module.exports = {
   getRatingStatistics: async (req, res) => {
     try {
       const { courseId } = req.params;
+      console.log('getRatingStatistics called with courseId:', courseId);
 
       const result = await pool.query(
         `SELECT
-          COUNT(*) as totalRatings,
-          AVG(Rating) as averageRating
+          COUNT(*) as totalratings,
+          AVG(rating) as averagerating
         FROM Comments
-        WHERE CourseID = $1`,
+        WHERE courseid = $1`,
         [parseInt(courseId)]
       );
 
-      const data = result.rows[0] || { totalRatings: 0, averageRating: 0 };
-      const totalRatings = parseInt(data.totalRatings || 0);
-      const averageRating = parseFloat(data.averageRating || 0).toFixed(1);
+      const data = result.rows[0] || { totalratings: 0, averagerating: 0 };
+      const totalRatings = parseInt(data.totalratings || 0);
+      const averageRating = parseFloat(data.averagerating || 0).toFixed(1);
+
+      console.log('getRatingStatistics result:', { totalRatings, averageRating });
 
       res.json({
         totalRatings,
