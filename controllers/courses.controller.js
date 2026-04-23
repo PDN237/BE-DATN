@@ -305,11 +305,54 @@ module.exports = {
 
       console.log('addComment called with:', { userId, courseId, content, rating });
 
+      const pUserId = parseInt(userId) || 1;
+      const pCourseId = parseInt(courseId);
+
+      // 1. Check if user has already reviewed this course
+      const existingReview = await pool.query(
+        'SELECT commentid FROM Comments WHERE courseid = $1 AND userid = $2',
+        [pCourseId, pUserId]
+      );
+
+      if (existingReview.rows.length > 0) {
+        return res.status(400).json({ 
+          error: 'Bạn đã đánh giá khóa học này rồi. Vui lòng sử dụng tính năng chỉnh sửa để cập nhật đánh giá.',
+          hasExistingReview: true
+        });
+      }
+
+      // 2. Check if user has completed the course
+      const progressResult = await pool.query(
+        `SELECT 
+          COUNT(CASE WHEN up.Status = 'completed' THEN 1 END) as completedlessons,
+          COUNT(l.LessonID) as totallessons
+        FROM Lessons l
+        JOIN Modules m ON l.ModuleID = m.ModuleID
+        LEFT JOIN UserProgress up ON l.LessonID = up.LessonID AND up.UserID = $2
+        WHERE m.CourseID = $1`,
+        [pCourseId, pUserId]
+      );
+
+      const progressData = progressResult.rows[0] || { completedlessons: 0, totallessons: 0 };
+      const completedLessons = parseInt(progressData.completedlessons || 0);
+      const totalLessons = parseInt(progressData.totallessons || 0);
+      const isCourseCompleted = totalLessons > 0 && completedLessons === totalLessons;
+
+      if (!isCourseCompleted) {
+        return res.status(403).json({ 
+          error: `Bạn cần hoàn thành khóa học (${completedLessons}/${totalLessons} bài) trước khi đánh giá.`,
+          courseCompleted: false,
+          completedLessons,
+          totalLessons
+        });
+      }
+
+      // 3. Insert the comment
       await pool.query(
         'INSERT INTO Comments (userid, courseid, content, rating) VALUES ($1, $2, $3, $4)',
         [
-          parseInt(userId) || 1,
-          parseInt(courseId),
+          pUserId,
+          pCourseId,
           content || '',
           parseInt(rating)
         ]
@@ -482,6 +525,81 @@ module.exports = {
         totalRatings: 0,
         averageRating: 0
       });
+    }
+  },
+
+  getUserComment: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const userId = parseInt(req.query.userId) || 1;
+
+      console.log('getUserComment called with courseId:', courseId, 'userId:', userId);
+
+      const result = await pool.query(
+        `SELECT c.commentid, c.userid, c.courseid, c.content, c.rating, c.createdat,
+                u.FullName, u.AvatarUrl
+         FROM Comments c
+         LEFT JOIN USERS u ON c.userid = u.UserID
+         WHERE c.courseid = $1 AND c.userid = $2`,
+        [parseInt(courseId), userId]
+      );
+
+      if (result.rows.length === 0) {
+        return res.json(null);
+      }
+
+      const row = result.rows[0];
+      const comment = {
+        commentId: row.commentid,
+        userId: row.userid,
+        courseId: row.courseid,
+        content: row.content,
+        rating: row.rating,
+        createdAt: row.createdat,
+        userName: row.fullname || row.FullName || `User ${row.userid}`,
+        avatarUrl: row.avatarurl || row.AvatarUrl || `https://api.dicebear.com/7.x/avataaars/svg?seed=${row.userid}`
+      };
+
+      console.log('getUserComment result:', comment);
+      res.json(comment);
+    } catch (error) {
+      console.error('getUserComment error:', error);
+      res.json(null);
+    }
+  },
+
+  updateComment: async (req, res) => {
+    try {
+      const { courseId } = req.params;
+      const { content, rating, userId } = req.body;
+
+      console.log('updateComment called with:', { userId, courseId, content, rating });
+
+      // Check if comment exists
+      const existing = await pool.query(
+        'SELECT commentid FROM Comments WHERE courseid = $1 AND userid = $2',
+        [parseInt(courseId), parseInt(userId)]
+      );
+
+      if (existing.rows.length === 0) {
+        return res.status(404).json({ error: 'Comment not found' });
+      }
+
+      const commentId = existing.rows[0].commentid;
+
+      await pool.query(
+        'UPDATE Comments SET content = $1, rating = $2, createdat = NOW() WHERE commentid = $3',
+        [
+          content || '',
+          parseInt(rating),
+          commentId
+        ]
+      );
+
+      res.json({ success: true, message: 'Comment updated successfully' });
+    } catch (error) {
+      console.error('updateComment error:', error);
+      res.status(500).json({ error: error.message });
     }
   }
 };
