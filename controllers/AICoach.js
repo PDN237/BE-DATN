@@ -85,21 +85,21 @@ For **TypeScript**: Check for proper function syntax, array handling, loop synta
      * Hint 3: Detailed guidance on fixing the logic or syntax
    - "annotatedCode": The EXACT original source code WITHOUT corrections. Insert 1-2 small inline comments (using correct comment syntax for ${language}) BELOW problematic lines. Comments should be vague hints (e.g., "Check the loop condition here", "Consider the algorithm's logic for this step"), NOT explicit solutions.
 
-CRITICAL REQUIREMENT: All text in "hints", "explanation", "solution", and inline comments in "annotatedCode" MUST be written in ENGLISH.
+CRITICAL REQUIREMENT: All text in "hints", "explanation", "solution", and inline comments in "annotatedCode" MUST be written in VIETNAMESE (Tiếng Việt).
 
 **Output Format Constraint:**
 You MUST ONLY reply in valid JSON format. No markdown, no explanations outside JSON.
 Schema:
 {
   "isCorrect": boolean,
-  "result": "Correct" or "Incorrect",
+  "result": "Đúng" or "Sai",
   "hints": [
-    "Hint 1 (in English)",
-    "Hint 2 (in English)",
-    "Hint 3 (in English)"
+    "Gợi ý 1 (in Vietnamese)",
+    "Gợi ý 2 (in Vietnamese)",
+    "Gợi ý 3 (in Vietnamese)"
   ],
-  "annotatedCode": "Original code with 1-2 inline comments where errors occur (in English).",
-  "explanation": "Brief explanation of the evaluation result (in English).",
+  "annotatedCode": "Original code with 1-2 inline comments where errors occur (in Vietnamese).",
+  "explanation": "Brief explanation of the evaluation result (in Vietnamese).",
   "solution": "Complete correct implementation reference if wrong, otherwise empty string."
 }
 `;
@@ -126,14 +126,14 @@ Schema:
       // Fallback
       parsed = {
         isCorrect: false,
-        result: "Error",
+        result: "Lỗi",
         hints: [
-          "The system could not analyze the error.",
-          "Please check your syntax carefully.",
-          "Try running the code in a local environment to see detailed errors."
+          "Hệ thống không thể phân tích được lỗi.",
+          "Vui lòng kiểm tra lại cú pháp của bạn.",
+          "Chạy thử code trên môi trường local để xem lỗi chi tiết."
         ],
         annotatedCode: "",
-        explanation: "JSON format error from AI",
+        explanation: "Lỗi định dạng JSON từ AI",
         solution: ""
       };
     }
@@ -144,7 +144,7 @@ Schema:
         // Fallback catch-all if AI returns old format "hint" instead of "hints"
         parsed.hints = [parsed.hint];
       } else {
-        parsed.hints = [parsed.hints || "Please review the algorithm."];
+        parsed.hints = [parsed.hints || "Vui lòng xem lại thuật toán."];
       }
     }
 
@@ -152,7 +152,7 @@ Schema:
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Server error" });
+    res.status(500).json({ error: "Lỗi server" });
   }
 });
 
