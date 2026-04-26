@@ -175,7 +175,10 @@ const CourseController = {
               Duration: l.duration || l.Duration,
               OrderIndex: l.orderindex || l.OrderIndex,
               ContentUrl: l.contenturl || l.ContentUrl,
-              ContentHtml: l.contenthtml || l.ContentHtml
+              ContentHtml: l.contenthtml || l.ContentHtml,
+              Describe: l.describe || l.Describe || '',
+              Summary: l.summary || l.Summary || '',
+              score: l.score || l.Score || 0
             }));
           } catch (lessErr) {
             console.warn(`No lessons for module ${module.ModuleID}:`, lessErr.message);
