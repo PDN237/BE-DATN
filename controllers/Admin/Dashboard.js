@@ -143,8 +143,9 @@ const DashboardController = {
         }))
       });
     } catch (error) {
-      console.error('Dashboard stats:', error);
-      res.status(500).json({ error: 'Stats error' });
+      console.error('Dashboard stats error:', error.message);
+      console.error('Error details:', error);
+      res.status(500).json({ error: 'Stats error', message: error.message });
     }
   }
 };
