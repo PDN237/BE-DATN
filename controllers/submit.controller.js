@@ -102,8 +102,15 @@ const submitCode = async (req, res) => {
         let totalMemoryUsed = 0;
 
         for (const testCase of testCases) {
-            let input = (testCase.input_data || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-            const expected = (testCase.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
+            let input = (testCase.input_data || '');
+            let expected = (testCase.expected_output || '');
+
+            // Handle double-escaped newlines (\\n -> \n -> actual newline)
+            input = input.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
+            input = input.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            
+            expected = expected.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
+            expected = expected.replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
 
             console.log('=== DEBUG TEST CASE ===');
             console.log('Test Case ID:', testCase.id);

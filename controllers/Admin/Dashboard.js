@@ -80,19 +80,11 @@ const DashboardController = {
       try {
         courseLevelDistribution = await pool.query(`
           SELECT 
-            CASE 
-              WHEN level = 'Cơ bản' THEN 'Cơ bản'
-              WHEN level = 'Trung cấp' THEN 'Trung cấp'
-              WHEN level = 'Nâng cao' THEN 'Nâng cao'
-              WHEN Level = 'Cơ bản' THEN 'Cơ bản'
-              WHEN Level = 'Trung cấp' THEN 'Trung cấp'
-              WHEN Level = 'Nâng cao' THEN 'Nâng cao'
-              ELSE 'Khác'
-            END as level,
+            COALESCE(level, Level) as level,
             COUNT(*) as count
           FROM Courses
           WHERE level IS NOT NULL OR Level IS NOT NULL
-          GROUP BY level
+          GROUP BY COALESCE(level, Level)
         `);
       } catch (e) { 
         console.error('courseLevelDistribution error:', e);

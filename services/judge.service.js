@@ -182,6 +182,8 @@ async function runWithJudge0(code, input, language = 'python', options = {}) {
             // Submit and wait for result (synchronous)
             console.log('=== DEBUG JUDGE0 ===');
             console.log('Input:', input);
+            console.log('Input repr:', JSON.stringify(input));
+            console.log('Input length:', input.length);
             console.log('Language ID:', languageId);
             console.log('==================');
             
