@@ -26,10 +26,18 @@ const submitCode = async (req, res) => {
             console.log('Expected from frontend:', JSON.stringify(expectedOutput));
             console.log('==============================');
             
+            // Frontend sends data via JSON.stringify which escapes newlines as \n
+            // We need to unescape them back to actual newlines
+            const fixedInput = inputData.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            const fixedExpected = expectedOutput.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            
+            console.log('Fixed input:', JSON.stringify(fixedInput));
+            console.log('Fixed expected:', JSON.stringify(fixedExpected));
+            
             const result = await judgeService.runSingleTestCase(
                 code,
-                inputData,
-                expectedOutput,
+                fixedInput,
+                fixedExpected,
                 language,
                 { timeLimit: 2 }
             );
