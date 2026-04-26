@@ -21,17 +21,15 @@ const submitCode = async (req, res) => {
 
     if (testCaseId !== undefined && inputData !== undefined && expectedOutput !== undefined) {
         try {
-            // Handle double-escaped newlines (\\n -> \n -> actual newline)
-            let fixedInput = inputData.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
-            fixedInput = fixedInput.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-            
-            let fixedExpected = expectedOutput.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
-            fixedExpected = fixedExpected.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            console.log('=== SINGLE TEST CASE DEBUG ===');
+            console.log('Input from frontend:', JSON.stringify(inputData));
+            console.log('Expected from frontend:', JSON.stringify(expectedOutput));
+            console.log('==============================');
             
             const result = await judgeService.runSingleTestCase(
                 code,
-                fixedInput,
-                fixedExpected,
+                inputData,
+                expectedOutput,
                 language,
                 { timeLimit: 2 }
             );
