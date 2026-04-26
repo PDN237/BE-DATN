@@ -38,10 +38,10 @@ const DashboardController = {
       // Additional stats with error handling
       let activeUsers7Days = { rows: [{ count: 0 }] };
       let activeUsers30Days = { rows: [{ count: 0 }] };
-      let monthlyGrowth = { rows: [] };
       let problemDifficulty = { rows: [] };
       let topCourses = { rows: [] };
       let submissionSuccessRate = { rows: [{ accepted: 0, total: 0 }] };
+      let courseLevelDistribution = { rows: [] };
 
       try {
         activeUsers7Days = await pool.query(`
@@ -63,19 +63,6 @@ const DashboardController = {
       } catch (e) { console.error('activeUsers30Days error:', e); }
 
       try {
-        monthlyGrowth = await pool.query(`
-          SELECT 
-            DATE_TRUNC('month', CreatedAt) as month,
-            COUNT(*) as count
-          FROM USERS
-          WHERE RoleID != 1
-            AND CreatedAt >= NOW() - INTERVAL '6 months'
-          GROUP BY DATE_TRUNC('month', CreatedAt)
-          ORDER BY month ASC
-        `);
-      } catch (e) { console.error('monthlyGrowth error:', e); }
-
-      try {
         problemDifficulty = await pool.query(`
           SELECT 
             CASE 
@@ -89,6 +76,22 @@ const DashboardController = {
           GROUP BY difficulty
         `);
       } catch (e) { console.error('problemDifficulty error:', e); }
+
+      try {
+        courseLevelDistribution = await pool.query(`
+          SELECT 
+            CASE 
+              WHEN Level = 'Beginner' THEN 'Cơ bản'
+              WHEN Level = 'Intermediate' THEN 'Trung cấp'
+              WHEN Level = 'Advanced' THEN 'Nâng cao'
+              ELSE 'Khác'
+            END as level,
+            COUNT(*) as count
+          FROM Courses
+          WHERE Level IS NOT NULL
+          GROUP BY level
+        `);
+      } catch (e) { console.error('courseLevelDistribution error:', e); }
 
       try {
         topCourses = await pool.query(`
@@ -170,8 +173,8 @@ const DashboardController = {
           Email: r.email || r.Email,
           ProblemTitle: r.problemtitle || r.ProblemTitle
         })),
-        monthlyGrowth: monthlyGrowth.rows.map(r => ({
-          month: r.month,
+        courseLevelDistribution: courseLevelDistribution.rows.map(r => ({
+          level: r.level,
           count: parseInt(r.count)
         })),
         problemDifficulty: problemDifficulty.rows.map(r => ({
