@@ -114,6 +114,10 @@ const CourseController = {
     try {
       const id = req.params.id || req.params.courseId;
       
+      if (!id || isNaN(parseInt(id))) {
+        return res.status(400).json({ error: 'Invalid course ID' });
+      }
+      
       let courseResult;
       try {
         courseResult = await pool.query(
