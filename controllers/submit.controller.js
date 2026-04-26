@@ -1,6 +1,162 @@
 const pool = require('../db');
 const judgeService = require('../services/judge.service');
 
+const runCode = async (req, res) => {
+    const { problemId } = req.params;
+    const { code, language = 'python' } = req.body;
+
+    if (!code || !code.trim()) {
+        return res.status(400).json({
+            success: false,
+            message: 'Code is required'
+        });
+    }
+
+    if (!problemId) {
+        return res.status(400).json({
+            success: false,
+            message: 'Problem ID is required'
+        });
+    }
+
+    try {
+        console.log('=== RUN CODE DEBUG ===');
+        console.log('Problem ID:', problemId);
+        console.log('Language:', language);
+        console.log('Code length:', code.length);
+        console.log('=====================');
+
+        // Fetch problem info
+        const problemResult = await pool.query(`
+            SELECT id, title, time_limit
+            FROM Problems 
+            WHERE id = $1
+        `, [parseInt(problemId)]);
+
+        if (problemResult.rows.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Problem not found'
+            });
+        }
+
+        const problem = problemResult.rows[0];
+
+        // Fetch ONLY visible test cases (not hidden)
+        const testCasesResult = await pool.query(`
+            SELECT id, input_data, expected_output, time_limit
+            FROM TestCases 
+            WHERE problem_id = $1 AND is_hidden = false
+            ORDER BY id
+        `, [parseInt(problemId)]);
+
+        const testCases = testCasesResult.rows;
+
+        if (testCases.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'No public test cases found for this problem'
+            });
+        }
+
+        console.log('Found', testCases.length, 'public test cases');
+
+        const testResults = [];
+
+        for (const testCase of testCases) {
+            // Get input from database (has actual newlines)
+            let input = testCase.input_data || '';
+            let expected = testCase.expected_output || '';
+
+            // Handle escaped newlines in database (if stored as \n literal)
+            input = input.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
+            input = input.replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            
+            expected = expected.replace(/\\\\n/g, '\n').replace(/\\\\r/g, '\r');
+            expected = expected.replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
+
+            const testCaseTimeLimit = testCase.time_limit !== null && testCase.time_limit !== undefined
+                ? testCase.time_limit
+                : (problem.time_limit || 2);
+
+            console.log('--- Test Case', testCase.id, '---');
+            console.log('Input:', JSON.stringify(input));
+            console.log('Expected:', JSON.stringify(expected));
+            console.log('Time limit:', testCaseTimeLimit);
+
+            const judgeResult = await judgeService.runWithJudge0(
+                code,
+                input,
+                language,
+                { timeLimit: testCaseTimeLimit }
+            );
+
+            console.log('Judge result status:', judgeResult.status);
+            console.log('Judge result stdout:', judgeResult.stdout);
+
+            let testStatus = 'Wrong Answer';
+            let output = '';
+            let executionTime = 0;
+            let memoryUsed = 0;
+
+            if (judgeResult.success) {
+                output = (judgeResult.stdout || '').trim();
+                executionTime = judgeResult.executionTime || 0;
+                memoryUsed = judgeResult.memory || 0;
+
+                testStatus = judgeResult.status || 'Accepted';
+                
+                if (judgeResult.stderr && judgeResult.stderr.trim()) {
+                    testStatus = 'Runtime Error';
+                    output = judgeResult.stderr;
+                }
+
+                if (testStatus === 'Accepted') {
+                    if (!judgeService.compareOutput(output, expected)) {
+                        testStatus = 'Wrong Answer';
+                    }
+                }
+            } else {
+                testStatus = judgeResult.status || 'System Error';
+                output = judgeResult.error || 'Unknown error';
+            }
+
+            testResults.push({
+                id: testCase.id,
+                status: testStatus,
+                input: input,
+                expectedOutput: expected,
+                actualOutput: output,
+                executionTime: executionTime,
+                memory: memoryUsed
+            });
+        }
+
+        console.log('=== RUN CODE COMPLETE ===');
+        console.log('Total test cases:', testResults.length);
+        console.log('========================');
+
+        res.json({
+            success: true,
+            data: {
+                testcases: testResults
+            }
+        });
+
+    } catch (error) {
+        console.error('=== RUN CODE ERROR ===');
+        console.error('Error type:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('======================');
+        res.status(500).json({
+            success: false,
+            message: 'Error running code',
+            error: error.message
+        });
+    }
+};
+
 const submitCode = async (req, res) => {
     const { problemId } = req.params;
     const { code, testCaseId, inputData, expectedOutput, language = 'python', userId } = req.body;
@@ -337,6 +493,7 @@ const getSubmissionById = async (req, res) => {
 };
 
 module.exports = {
+    runCode,
     submitCode,
     getSubmissionById
 };
