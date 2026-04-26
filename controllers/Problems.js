@@ -4,7 +4,16 @@ const pool = ObjectPool;
 const getAllProblems = async (req, res) => {
   try {
     const userId = parseInt(req.query.userId);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const offset = (page - 1) * limit;
+    
     let queryParams = [];
+    
+    // First, get total count
+    const countQuery = `SELECT COUNT(*) as total FROM Problems WHERE accept = true OR accept IS NULL`;
+    const countResult = await pool.query(countQuery);
+    const total = parseInt(countResult.rows[0].total);
     
     let query = `
       SELECT
@@ -35,12 +44,20 @@ const getAllProblems = async (req, res) => {
       query += `, 'Not Started' AS user_status`;
     }
     
-    query += ` FROM Problems ORDER BY id`;
+    queryParams.push(limit, offset);
+    query += ` FROM Problems WHERE accept = true OR accept IS NULL ORDER BY id LIMIT $${queryParams.length - 1} OFFSET $${queryParams.length}`;
+    
     const result = await pool.query(query, queryParams);
     
     res.json({
       success: true,
-      data: result.rows
+      data: result.rows,
+      pagination: {
+        page: page,
+        limit: limit,
+        total: total,
+        totalPages: Math.ceil(total / limit)
+      }
     });
   } catch (error) {
     console.error('Error fetching problems:', error);
