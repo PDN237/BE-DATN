@@ -136,8 +136,6 @@ const CourseController = {
         return res.json({Title: 'Empty Course Builder', modules: []});
       }
       
-      console.log(`✅ Course ${id} found, loading modules...`);
-      
       let modules = [];
       try {
         const modulesResult = await pool.query(
