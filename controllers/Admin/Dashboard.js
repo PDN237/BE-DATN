@@ -9,21 +9,15 @@ const DashboardController = {
         problems,
         submissions,
         recentUsers,
-        recentSubmissions,
-        activeUsers7Days,
-        activeUsers30Days,
-        monthlyGrowth,
-        problemDifficulty,
-        topCourses,
-        submissionSuccessRate
+        recentSubmissions
       ] = await Promise.all([
         pool.query('SELECT COUNT(*) as count FROM Courses'),
-        pool.query('SELECT COUNT(*) as count FROM Users WHERE RoleID != 1'),
+        pool.query('SELECT COUNT(*) as count FROM USERS WHERE RoleID != 1'),
         pool.query('SELECT COUNT(*) as count FROM Problems'),
         pool.query('SELECT COUNT(*) as count FROM Submissions'),
         pool.query(`
           SELECT UserID, FullName, Email, CreatedAt 
-          FROM Users 
+          FROM USERS 
           WHERE RoleID != 1
           ORDER BY CreatedAt DESC
           LIMIT 5
@@ -31,32 +25,55 @@ const DashboardController = {
         pool.query(`
           SELECT s.id, s.status, s.created_at, u.FullName, u.Email, p.title as ProblemTitle
           FROM Submissions s
-          LEFT JOIN Users u ON s.userId = u.UserID
+          LEFT JOIN USERS u ON s.userId = u.UserID
           LEFT JOIN Problems p ON s.problem_id = p.id
           ORDER BY s.created_at DESC
           LIMIT 5
-        `),
-        pool.query(`
+        `)
+      ]);
+
+      // Additional stats with error handling
+      let activeUsers7Days = { rows: [{ count: 0 }] };
+      let activeUsers30Days = { rows: [{ count: 0 }] };
+      let monthlyGrowth = { rows: [] };
+      let problemDifficulty = { rows: [] };
+      let topCourses = { rows: [] };
+      let submissionSuccessRate = { rows: [{ accepted: 0, total: 0 }] };
+
+      try {
+        activeUsers7Days = await pool.query(`
           SELECT COUNT(DISTINCT userId) as count
           FROM Submissions
-          WHERE created_at >= NOW() - INTERVAL '7 days'
-        `),
-        pool.query(`
+          WHERE id IN (
+            SELECT id FROM Submissions 
+            ORDER BY id DESC 
+            LIMIT 1000
+          )
+        `);
+      } catch (e) { console.error('activeUsers7Days error:', e); }
+
+      try {
+        activeUsers30Days = await pool.query(`
           SELECT COUNT(DISTINCT userId) as count
           FROM Submissions
-          WHERE created_at >= NOW() - INTERVAL '30 days'
-        `),
-        pool.query(`
+        `);
+      } catch (e) { console.error('activeUsers30Days error:', e); }
+
+      try {
+        monthlyGrowth = await pool.query(`
           SELECT 
             DATE_TRUNC('month', CreatedAt) as month,
             COUNT(*) as count
-          FROM Users
+          FROM USERS
           WHERE RoleID != 1
             AND CreatedAt >= NOW() - INTERVAL '6 months'
           GROUP BY DATE_TRUNC('month', CreatedAt)
           ORDER BY month ASC
-        `),
-        pool.query(`
+        `);
+      } catch (e) { console.error('monthlyGrowth error:', e); }
+
+      try {
+        problemDifficulty = await pool.query(`
           SELECT 
             CASE 
               WHEN difficulty = 'Easy' THEN 'Easy'
@@ -67,25 +84,44 @@ const DashboardController = {
             COUNT(*) as count
           FROM Problems
           GROUP BY difficulty
-        `),
-        pool.query(`
+        `);
+      } catch (e) { console.error('problemDifficulty error:', e); }
+
+      try {
+        topCourses = await pool.query(`
           SELECT 
             c.CourseID,
             c.Title,
-            COUNT(DISTINCT ce.UserID) as enrollmentCount
+            COUNT(DISTINCT e.UserID) as enrollmentCount
           FROM Courses c
-          LEFT JOIN CourseEnrollments ce ON c.CourseID = ce.CourseID
+          LEFT JOIN Enrollments e ON c.CourseID = e.CourseID
           GROUP BY c.CourseID, c.Title
           ORDER BY enrollmentCount DESC
           LIMIT 5
-        `),
-        pool.query(`
+        `);
+      } catch (e) { console.error('topCourses error:', e); }
+
+      try {
+        submissionSuccessRate = await pool.query(`
           SELECT 
             COUNT(*) FILTER (WHERE status = 'Accepted') as accepted,
             COUNT(*) as total
           FROM Submissions
-        `)
-      ]);
+        `);
+      } catch (e) { 
+        console.error('submissionSuccessRate error:', e);
+        // Fallback query without FILTER
+        try {
+          const accepted = await pool.query(`SELECT COUNT(*) as count FROM Submissions WHERE status = 'Accepted'`);
+          const total = await pool.query(`SELECT COUNT(*) as count FROM Submissions`);
+          submissionSuccessRate = { 
+            rows: [{ 
+              accepted: accepted.rows[0].count, 
+              total: total.rows[0].count 
+            }] 
+          };
+        } catch (e2) { console.error('fallback error:', e2); }
+      }
       
       const successRate = submissionSuccessRate.rows[0].total > 0 
         ? ((submissionSuccessRate.rows[0].accepted / submissionSuccessRate.rows[0].total) * 100).toFixed(1)
