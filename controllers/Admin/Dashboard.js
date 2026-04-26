@@ -23,7 +23,10 @@ const DashboardController = {
           LIMIT 5
         `),
         pool.query(`
-          SELECT s.id, s.status, s.created_at, u.FullName, u.Email, p.title as ProblemTitle
+          SELECT s.id, s.status, s.created_at, 
+                 COALESCE(u.FullName, 'Unknown User') as FullName, 
+                 COALESCE(u.Email, 'N/A') as Email, 
+                 p.title as ProblemTitle
           FROM Submissions s
           LEFT JOIN USERS u ON s.userId = u.UserID
           LEFT JOIN Problems p ON s.problem_id = p.id
@@ -92,14 +95,28 @@ const DashboardController = {
           SELECT 
             c.CourseID,
             c.Title,
-            COUNT(DISTINCT e.UserID) as enrollmentCount
+            COUNT(DISTINCT up.UserID) as enrollmentCount
           FROM Courses c
-          LEFT JOIN Enrollments e ON c.CourseID = e.CourseID
+          LEFT JOIN Modules m ON c.CourseID = m.CourseID
+          LEFT JOIN Lessons l ON m.ModuleID = l.ModuleID
+          LEFT JOIN UserProgress up ON l.LessonID = up.LessonID
           GROUP BY c.CourseID, c.Title
           ORDER BY enrollmentCount DESC
           LIMIT 5
         `);
-      } catch (e) { console.error('topCourses error:', e); }
+      } catch (e) { 
+        console.error('topCourses error:', e);
+        // Fallback: just show courses with 0 enrollments
+        topCourses = await pool.query(`
+          SELECT 
+            CourseID,
+            Title,
+            0 as enrollmentCount
+          FROM Courses
+          ORDER BY CourseID
+          LIMIT 5
+        `);
+      }
 
       try {
         submissionSuccessRate = await pool.query(`
