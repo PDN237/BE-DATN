@@ -31,7 +31,6 @@ const CourseController = {
         message: 'Course created successfully'
       });
     } catch (error) {
-      console.error('createCourse:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -93,7 +92,6 @@ const CourseController = {
       }));
       const total = parseInt(countResult.rows[0]?.total || 0);
       
-      console.log(`✅ getAllCourses: page=${page}, size=${size}, search='${search}', found=${courses.length}, total=${total}`);
       
       res.json({
         courses: courses,
@@ -105,11 +103,6 @@ const CourseController = {
         }
       });
     } catch (error) {
-      console.error('❌ getAllCourses admin ERROR:', {
-        message: error.message,
-        stack: error.stack,
-        queryParams: req.query
-      });
       res.status(500).json({ 
         error: 'Failed to load courses: ' + error.message,
         debug: process.env.NODE_ENV === 'development' ? error.message : undefined 
@@ -128,7 +121,6 @@ const CourseController = {
           [parseInt(id)]
         );
       } catch (courseErr) {
-        console.error('Course fetch error:', courseErr);
         return res.status(404).json({Title: 'Course Not Found', modules: []});
       }
 
@@ -223,27 +215,22 @@ const CourseController = {
                           IsCorrect: a.iscorrect || a.IsCorrect
                         }));
                       } catch (ansErr) {
-                        console.warn(`No answers for question ${question.QuestionID}:`, ansErr.message);
-                        question.answers = [];
+                                    question.answers = [];
                       }
                     }
                   } catch (qstErr) {
-                    console.warn(`No questions for quiz ${quiz.QuizID}:`, qstErr.message);
-                    quiz.questions = [];
+                            quiz.questions = [];
                   }
                 }
               } catch (quizErr) {
-                console.warn(`No quizzes for lesson ${lesson.LessonID}:`, quizErr.message);
-                lesson.quizzes = [];
+                    lesson.quizzes = [];
               }
             }
           } catch (lessErr) {
-            console.warn(`No lessons for module ${module.ModuleID}:`, lessErr.message);
             module.lessons = [];
           }
         }
       } catch (modErr) {
-        console.error('Modules fetch error:', modErr);
         modules = [];
       }
       
@@ -262,7 +249,6 @@ const CourseController = {
       }
       res.json(course || null);
     } catch (error) {
-      console.error('getCourseById admin:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -271,7 +257,6 @@ const CourseController = {
     try {
       const { id } = req.params;
       const courseId = parseInt(id);
-      console.log(`🔄 updateCourse: id='${id}' -> courseId=${courseId}`);
       
       const { Title, Description, Level, Thumbnail } = req.body;
       
@@ -284,10 +269,8 @@ const CourseController = {
         [courseId]
       );
       const exists = existsResult.rows || [];
-      console.log(`✅ Exists result:`, exists.length ? exists[0] : 'NOT FOUND');
       
       if (!exists.length) {
-        console.log(`❌ Course ${courseId} not found`);
         return res.status(404).json({ error: `Course ${courseId} not found` });
       }
       
@@ -306,15 +289,8 @@ const CourseController = {
         ]
       );
       
-      console.log(`✅ Course ${courseId} updated`);
       res.json({ success: true, message: 'Course updated' });
     } catch (error) {
-      console.error('❌ updateCourse ERROR:', {
-        id: req.params.id,
-        parsedId: parseInt(req.params.id),
-        error: error.message,
-        stack: error.stack
-      });
       res.status(500).json({ error: error.message });
     }
   },
@@ -323,16 +299,13 @@ const CourseController = {
     try {
       const { id } = req.params;
       const courseId = parseInt(id);
-      console.log(`🗑️ deleteCourse: id='${id}' -> courseId=${courseId}`);
       
-      console.log(`🔍 Checking dependencies for course ${courseId}...`);
       
       const modulesResult = await pool.query(
         'SELECT COUNT(*) as count FROM Modules WHERE CourseID = $1',
         [courseId]
       );
       const modules = modulesResult.rows?.[0] || { count: 0 };
-      console.log(`📦 Modules: ${modules.count}`);
       
       if (parseInt(modules.count) > 0) {
         return res.status(400).json({
@@ -346,7 +319,6 @@ const CourseController = {
         [courseId]
       );
       const courseExists = courseResult.rows?.[0] || { count: 0 };
-      console.log(`📋 Course exists: ${courseExists.count}`);
       
       if (parseInt(courseExists.count) === 0) {
         return res.status(404).json({ error: 'Course not found' });
@@ -356,16 +328,9 @@ const CourseController = {
         'DELETE FROM Courses WHERE CourseID = $1',
         [courseId]
       );
-      console.log(`✅ Deleted rows affected:`, deleteResult.rowCount);
       
       res.json({ success: true, message: 'Course deleted successfully' });
     } catch (error) {
-      console.error('❌ deleteCourse ERROR:', {
-        id: req.params.id,
-        parsedId: parseInt(req.params.id),
-        error: error.message,
-        stack: error.stack
-      });
       res.status(500).json({ 
         error: 'Delete failed: ' + error.message,
         debug: process.env.NODE_ENV === 'development' ? error.stack : undefined 
@@ -383,7 +348,6 @@ const CourseController = {
       );
       res.json({ success: true, message: 'Khóa học đã được phê duyệt và xuất bản!' });
     } catch (error) {
-      console.error('approveCourse:', error);
       res.status(500).json({ error: error.message });
     }
   },
@@ -399,7 +363,6 @@ const CourseController = {
       );
       res.json({ success: true, message: 'Đã từ chối khóa học và gửi feedback.' });
     } catch (error) {
-      console.error('rejectCourse:', error);
       res.status(500).json({ error: error.message });
     }
   }
