@@ -3,7 +3,7 @@ const pool = require('../../db.js');
 const DashboardController = {
   getStats: async (req, res) => {
     try {
-      // Start with basic counts only
+      // Start with basic counts only - try without quotes
       const [
         courses,
         users,
@@ -11,11 +11,11 @@ const DashboardController = {
         submissions,
         enrollments
       ] = await Promise.all([
-        pool.query('SELECT COUNT(*) as count FROM "Courses"'),
-        pool.query('SELECT COUNT(*) as count FROM "Users" WHERE "RoleID" != 1'),
-        pool.query('SELECT COUNT(*) as count FROM "Problems"'),
-        pool.query('SELECT COUNT(*) as count FROM "Submissions"'),
-        pool.query('SELECT COUNT(*) as count FROM "Enrollments"')
+        pool.query('SELECT COUNT(*) as count FROM Courses'),
+        pool.query('SELECT COUNT(*) as count FROM Users WHERE RoleID != 1'),
+        pool.query('SELECT COUNT(*) as count FROM Problems'),
+        pool.query('SELECT COUNT(*) as count FROM Submissions'),
+        pool.query('SELECT COUNT(*) as count FROM Enrollments')
       ]);
       
       res.json({
