@@ -375,9 +375,10 @@ const CourseController = {
   unpublishCourse: async (req, res) => {
     try {
       const courseId = parseInt(req.params.id);
+      const { feedback } = req.body;
       await pool.query(
-        `UPDATE Courses SET accept = true, iscompleted = false, feedback = '' WHERE CourseID = $1`,
-        [courseId]
+        `UPDATE Courses SET accept = true, iscompleted = false, feedback = $2 WHERE CourseID = $1`,
+        [courseId, feedback || '']
       );
       res.json({ success: true, message: 'Đã hủy xuất bản khóa học thành công.' });
     } catch (error) {
