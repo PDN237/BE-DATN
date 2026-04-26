@@ -28,37 +28,6 @@ const DashboardController = {
         ORDER BY s.created_at DESC
         LIMIT 5
       `);
-      
-      // Top courses by enrollment
-      const topCourses = await pool.query(`
-        SELECT c.CourseID, c.Title, c.Level, c.Thumbnail,
-               COUNT(DISTINCT e.UserID) as EnrollmentCount
-        FROM Courses c
-        LEFT JOIN Enrollments e ON c.CourseID = e.CourseID
-        GROUP BY c.CourseID, c.Title, c.Level, c.Thumbnail
-        ORDER BY EnrollmentCount DESC
-        LIMIT 5
-      `);
-      
-      // Problem difficulty distribution
-      const problemDifficulty = await pool.query(`
-        SELECT Difficulty, COUNT(*) as count
-        FROM Problems
-        GROUP BY Difficulty
-        ORDER BY Difficulty
-      `);
-      
-      // Submission statistics by status
-      const submissionStats = await pool.query(`
-        SELECT status, COUNT(*) as count
-        FROM Submissions
-        GROUP BY status
-      `);
-      
-      // Calculate acceptance rate
-      const totalSubs = parseInt(submissions.rows[0].count || 0);
-      const acceptedSubs = submissionStats.rows.find(r => r.status === 'Accepted')?.count || 0;
-      const acceptanceRate = totalSubs > 0 ? ((acceptedSubs / totalSubs) * 100).toFixed(1) : 0;
 
       res.json({
         stats: {
@@ -69,7 +38,7 @@ const DashboardController = {
           totalEnrollments: parseInt(enrollments.rows[0].count || 0),
           activeUsers: 0,
           completionRate: 0,
-          acceptanceRate: parseFloat(acceptanceRate)
+          acceptanceRate: 0
         },
         recentUsers: recentUsers.rows.map(r => ({
           UserID: r.UserID,
@@ -86,21 +55,9 @@ const DashboardController = {
           ProblemTitle: r.ProblemTitle
         })),
         courseCompletions: [],
-        problemDifficulty: problemDifficulty.rows.map(r => ({
-          difficulty: r.Difficulty || 'Unknown',
-          count: parseInt(r.count || 0)
-        })),
-        topCourses: topCourses.rows.map(r => ({
-          courseId: r.CourseID,
-          title: r.Title,
-          level: r.Level,
-          thumbnail: r.Thumbnail,
-          enrollmentCount: parseInt(r.EnrollmentCount || 0)
-        })),
-        submissionStats: submissionStats.rows.map(r => ({
-          status: r.status,
-          count: parseInt(r.count || 0)
-        }))
+        problemDifficulty: [],
+        topCourses: [],
+        submissionStats: []
       });
     } catch (error) {
       console.error('Dashboard stats error:', error.message);
