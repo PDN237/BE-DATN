@@ -84,14 +84,23 @@ const DashboardController = {
               WHEN level = 'Cơ bản' THEN 'Cơ bản'
               WHEN level = 'Trung cấp' THEN 'Trung cấp'
               WHEN level = 'Nâng cao' THEN 'Nâng cao'
+              WHEN Level = 'Cơ bản' THEN 'Cơ bản'
+              WHEN Level = 'Trung cấp' THEN 'Trung cấp'
+              WHEN Level = 'Nâng cao' THEN 'Nâng cao'
               ELSE 'Khác'
             END as level,
             COUNT(*) as count
           FROM Courses
-          WHERE level IS NOT NULL
+          WHERE level IS NOT NULL OR Level IS NOT NULL
           GROUP BY level
         `);
-      } catch (e) { console.error('courseLevelDistribution error:', e); }
+      } catch (e) { 
+        console.error('courseLevelDistribution error:', e);
+        // Fallback: show all courses count
+        courseLevelDistribution = await pool.query(`
+          SELECT 'Tất cả' as level, COUNT(*) as count FROM Courses
+        `);
+      }
 
       try {
         topCourses = await pool.query(`
