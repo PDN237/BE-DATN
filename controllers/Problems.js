@@ -131,9 +131,16 @@ const getTestCasesByProblemId = async (req, res) => {
       ORDER BY id
     `, [problemId]);
     
+    // Unescape newlines before sending to frontend
+    const unescapedRows = result.rows.map(row => ({
+      ...row,
+      input_data: (row.input_data || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r'),
+      expected_output: (row.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r')
+    }));
+    
     res.json({
       success: true,
-      data: result.rows
+      data: unescapedRows
     });
   } catch (error) {
     console.error('Error fetching test cases:', error);
