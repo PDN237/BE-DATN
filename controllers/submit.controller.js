@@ -24,6 +24,8 @@ const submitCode = async (req, res) => {
             console.log('=== SINGLE TEST CASE DEBUG ===');
             console.log('Input from frontend:', JSON.stringify(inputData));
             console.log('Expected from frontend:', JSON.stringify(expectedOutput));
+            console.log('Language:', language);
+            console.log('Code length:', code.length);
             console.log('==============================');
             
             // Frontend sends data via JSON.stringify which escapes newlines as \n
@@ -42,6 +44,14 @@ const submitCode = async (req, res) => {
                 { timeLimit: 2 }
             );
             
+            console.log('=== SINGLE TEST CASE RESULT ===');
+            console.log('Status:', result.status);
+            console.log('Output:', result.output);
+            console.log('Runtime:', result.runtime);
+            console.log('Memory:', result.memory);
+            console.log('Error:', result.error);
+            console.log('==============================');
+            
             return res.json({
                 success: true,
                 data: {
@@ -53,7 +63,11 @@ const submitCode = async (req, res) => {
                 }
             });
         } catch (error) {
-            console.error('Error running single test case:', error);
+            console.error('=== SINGLE TEST CASE ERROR ===');
+            console.error('Error type:', error.name);
+            console.error('Error message:', error.message);
+            console.error('Error stack:', error.stack);
+            console.error('==============================');
             return res.status(500).json({
                 success: false,
                 message: 'Error running test case',
@@ -258,7 +272,11 @@ const submitCode = async (req, res) => {
 
     } catch (error) {
         await client.query('ROLLBACK');
-        console.error('Error submitting code:', error);
+        console.error('=== FULL SUBMISSION ERROR ===');
+        console.error('Error type:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('==============================');
         res.status(500).json({
             success: false,
             message: 'Error submitting code',
