@@ -41,7 +41,6 @@ const DashboardController = {
       let problemDifficulty = { rows: [] };
       let topCourses = { rows: [] };
       let submissionSuccessRate = { rows: [{ accepted: 0, total: 0 }] };
-      let courseLevelDistribution = { rows: [] };
 
       try {
         activeUsers7Days = await pool.query(`
@@ -76,23 +75,6 @@ const DashboardController = {
           GROUP BY difficulty
         `);
       } catch (e) { console.error('problemDifficulty error:', e); }
-
-      try {
-        courseLevelDistribution = await pool.query(`
-          SELECT 
-            COALESCE(level, Level) as level,
-            COUNT(*) as count
-          FROM Courses
-          WHERE level IS NOT NULL OR Level IS NOT NULL
-          GROUP BY COALESCE(level, Level)
-        `);
-      } catch (e) { 
-        console.error('courseLevelDistribution error:', e);
-        // Fallback: show all courses count
-        courseLevelDistribution = await pool.query(`
-          SELECT 'Tất cả' as level, COUNT(*) as count FROM Courses
-        `);
-      }
 
       try {
         topCourses = await pool.query(`
@@ -173,10 +155,6 @@ const DashboardController = {
           FullName: r.fullname || r.FullName,
           Email: r.email || r.Email,
           ProblemTitle: r.problemtitle || r.ProblemTitle
-        })),
-        courseLevelDistribution: courseLevelDistribution.rows.map(r => ({
-          level: r.level,
-          count: parseInt(r.count)
         })),
         problemDifficulty: problemDifficulty.rows.map(r => ({
           difficulty: r.difficulty,
