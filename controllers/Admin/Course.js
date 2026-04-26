@@ -180,6 +180,65 @@ const CourseController = {
               Summary: l.summary || l.Summary || '',
               score: l.score || l.Score || 0
             }));
+
+            // Load quizzes for each lesson
+            for (const lesson of module.lessons) {
+              try {
+                const quizzesResult = await pool.query(
+                  `SELECT q.* FROM Quizzes q WHERE q.LessonID = $1`,
+                  [parseInt(lesson.LessonID)]
+                );
+                lesson.quizzes = (quizzesResult.rows || []).map(q => ({
+                  ...q,
+                  QuizID: q.quizid || q.QuizID,
+                  LessonID: q.lessonid || q.LessonID,
+                  Title: q.title || q.Title
+                }));
+
+                // Load questions for each quiz
+                for (const quiz of lesson.quizzes) {
+                  try {
+                    const questionsResult = await pool.query(
+                      `SELECT qst.* FROM Questions qst WHERE qst.QuizID = $1`,
+                      [parseInt(quiz.QuizID)]
+                    );
+                    quiz.questions = (questionsResult.rows || []).map(qst => ({
+                      ...qst,
+                      QuestionID: qst.questionid || qst.QuestionID,
+                      QuizID: qst.quizid || qst.QuizID,
+                      QuestionText: qst.questiontext || qst.QuestionText,
+                      QuestionType: qst.questiontype || qst.QuestionType
+                    }));
+
+                    // Load answers for each question
+                    for (const question of quiz.questions) {
+                      try {
+                        const answersResult = await pool.query(
+                          `SELECT a.* FROM Answers a WHERE a.QuestionID = $1`,
+                          [parseInt(question.QuestionID)]
+                        );
+                        question.answers = (answersResult.rows || []).map(a => ({
+                          ...a,
+                          AnswerID: a.answerid || a.AnswerID,
+                          QuestionID: a.questionid || a.QuestionID,
+                          AnswerText: a.answertext || a.AnswerText,
+                          IsCorrect: a.iscorrect || a.IsCorrect
+                        }));
+                      } catch (ansErr) {
+                        console.warn(`No answers for question ${question.QuestionID}:`, ansErr.message);
+                        question.answers = [];
+                      }
+                    }
+                  } catch (qstErr) {
+                    console.warn(`No questions for quiz ${quiz.QuizID}:`, qstErr.message);
+                    quiz.questions = [];
+                  }
+                }
+              } catch (quizErr) {
+                console.warn(`No quizzes for lesson ${lesson.LessonID}:`, quizErr.message);
+                lesson.quizzes = [];
+              }
+            }
           } catch (lessErr) {
             console.warn(`No lessons for module ${module.ModuleID}:`, lessErr.message);
             module.lessons = [];
