@@ -73,26 +73,7 @@ const DashboardController = {
           GROUP BY DATE_TRUNC('month', CreatedAt)
           ORDER BY month ASC
         `);
-        console.log('monthlyGrowth data:', monthlyGrowth.rows);
-      } catch (e) { 
-        console.error('monthlyGrowth error:', e);
-        // Fallback: get all users by month without date filter
-        try {
-          monthlyGrowth = await pool.query(`
-            SELECT 
-              DATE_TRUNC('month', CreatedAt) as month,
-              COUNT(*) as count
-            FROM USERS
-            WHERE RoleID != 1
-            GROUP BY DATE_TRUNC('month', CreatedAt)
-            ORDER BY month ASC
-            LIMIT 6
-          `);
-          console.log('monthlyGrowth fallback data:', monthlyGrowth.rows);
-        } catch (e2) { 
-          console.error('monthlyGrowth fallback error:', e2);
-        }
-      }
+      } catch (e) { console.error('monthlyGrowth error:', e); }
 
       try {
         problemDifficulty = await pool.query(`
