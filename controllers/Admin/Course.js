@@ -242,7 +242,6 @@ const CourseController = {
             module.lessons = [];
           }
         }
-        console.log(`✅ Loaded ${modules.length} modules for course ${id}`);
       } catch (modErr) {
         console.error('Modules fetch error:', modErr);
         modules = [];
