@@ -102,12 +102,13 @@ const submitCode = async (req, res) => {
         let totalMemoryUsed = 0;
 
         for (const testCase of testCases) {
-            let input = testCase.input_data || '';
-            const expected = (testCase.expected_output || '').trim();
+            let input = (testCase.input_data || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            const expected = (testCase.expected_output || '').replace(/\\n/g, '\n').replace(/\\r/g, '\r').trim();
 
             console.log('=== DEBUG TEST CASE ===');
             console.log('Test Case ID:', testCase.id);
-            console.log('Raw input:', JSON.stringify(input));
+            console.log('Raw input:', JSON.stringify(testCase.input_data));
+            console.log('Fixed input:', JSON.stringify(input));
             console.log('Expected:', JSON.stringify(expected));
             console.log('=====================');
 
