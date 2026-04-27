@@ -59,8 +59,9 @@ async function getUserById(req, res) {
 
 async function createUser(req, res) {
   try {
-    const { FullName, Email, PassWord, RoleID, IsActive, score, title } = req.body;
-    if (!FullName || !Email || !PassWord || RoleID === undefined) {
+    const { FullName, Email, PassWord, RoleID, IsActive, Describe, score, title } = req.body;
+    
+    if (!FullName || !Email || !PassWord || RoleID === undefined || RoleID === null || RoleID === '') {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -72,18 +73,19 @@ async function createUser(req, res) {
     }
 
     const insertQuery = `
-      INSERT INTO USERS (FullName, Email, PassWord, RoleID, AvatarUrl, IsActive, CreatedAt, UpdatedAt, score, title)
-      VALUES ($1, $2, $3, $4, 'default-avatar.png', $5, NOW(), NOW(), $6, $7)
+      INSERT INTO USERS (FullName, Email, PassWord, RoleID, AvatarUrl, IsActive, CreatedAt, UpdatedAt, score, title, Describe)
+      VALUES ($1, $2, $3, $4, 'default-avatar.png', $5, NOW(), NOW(), $6, $7, $8)
       RETURNING UserID
     `;
     const resultInsert = await pool.query(insertQuery, [
       FullName,
       Email,
       PassWord,
-      RoleID,
+      parseInt(RoleID),
       IsActive ? true : false,
       score !== undefined ? parseInt(score) : 0,
-      title || ''
+      title || '',
+      Describe || ''
     ]);
     const insertResult = resultInsert.rows;
     res.status(201).json({ UserID: insertResult[0].userid || insertResult[0].UserID });
