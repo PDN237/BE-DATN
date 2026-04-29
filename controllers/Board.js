@@ -19,15 +19,38 @@ exports.getLeaderboard = async (req, res) => {
                  WHERE s.UserID = u.UserID AND s.status = 'Accepted') as solved_problems,
                 -- Count completed courses (courses where user has 100% progress)
                 (SELECT COUNT(DISTINCT c.CourseID)
-                 FROM Enrollments e
-                 JOIN Courses c ON e.CourseID = c.CourseID
-                 WHERE e.UserID = u.UserID
-                 AND (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID) > 0
-                 AND (SELECT COUNT(*) FROM UserProgress up 
-                      JOIN Lessons l ON up.LessonID = l.LessonID 
-                      JOIN Modules m ON l.ModuleID = m.ModuleID 
-                      WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID AND up.Status = 'completed') 
-                 = (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID)
+                 FROM (
+                    -- Main query: courses from Enrollments
+                    SELECT c.CourseID, c.Title, c.Thumbnail,
+                           (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID) as totallessons,
+                           (SELECT COUNT(*) FROM UserProgress up 
+                            JOIN Lessons l ON up.LessonID = l.LessonID 
+                            JOIN Modules m ON l.ModuleID = m.ModuleID 
+                            WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID AND up.Status = 'completed') as completedlessons
+                    FROM Enrollments e
+                    JOIN Courses c ON e.CourseID = c.CourseID
+                    WHERE e.UserID = u.UserID
+                    
+                    UNION
+                    
+                    -- Fallback: courses from UserProgress without Enrollments
+                    SELECT c.CourseID, c.Title, c.Thumbnail,
+                           (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID) as totallessons,
+                           (SELECT COUNT(*) FROM UserProgress up2 
+                            JOIN Lessons l2 ON up2.LessonID = l2.LessonID 
+                            JOIN Modules m2 ON l2.ModuleID = m2.ModuleID 
+                            WHERE m2.CourseID = c.CourseID AND up2.UserID = u.UserID AND up2.Status = 'completed') as completedlessons
+                    FROM Courses c
+                    WHERE EXISTS (
+                       SELECT 1 FROM UserProgress up 
+                       JOIN Lessons l ON up.LessonID = l.LessonID 
+                       JOIN Modules m ON l.ModuleID = m.ModuleID 
+                       WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID
+                    ) AND NOT EXISTS (
+                       SELECT 1 FROM Enrollments e WHERE e.CourseID = c.CourseID AND e.UserID = u.UserID
+                    )
+                 ) c
+                 WHERE c.totallessons > 0 AND c.completedlessons = c.totallessons
                 ) as completed_courses
             FROM USERS u
             WHERE u.RoleID = 3
