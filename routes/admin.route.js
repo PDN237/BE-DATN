@@ -11,6 +11,7 @@ const answerController = require('../controllers/Admin/Answer');
 // Courses
 router.post('/courses', adminAuth.requireAdmin, courseController.createCourse);
 router.get('/courses', adminAuth.requireAdmin, courseController.getAllCourses);
+router.get('/courses/pending', adminAuth.requireAdmin, courseController.getPendingCourses);
 router.get('/courses/:id', adminAuth.requireAdmin, courseController.getCourseById);
 router.put('/courses/:id', adminAuth.requireAdmin, courseController.updateCourse);
 router.delete('/courses/:id', adminAuth.requireAdmin, courseController.deleteCourse);

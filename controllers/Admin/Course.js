@@ -384,6 +384,86 @@ const CourseController = {
     } catch (error) {
       res.status(500).json({ error: error.message });
     }
+  },
+
+  // GET /api/admin/courses/pending
+  // Get courses pending review (iscompleted=false AND accept=true)
+  getPendingCourses: async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const size = Math.max(1, Math.min(50, parseInt(req.query.size) || 10));
+      const search = (req.query.search || '').trim();
+      const offset = (page - 1) * size;
+      
+      const searchParam = `%${search}%`;
+      const useSearch = search.length > 0;
+      
+      const mainParams = [size, offset];
+      const mainWhereClause = useSearch ? `AND c.Title LIKE $3` : '';
+      if (useSearch) {
+        mainParams.push(searchParam);
+      }
+      
+      const coursesResult = await pool.query(
+        `SELECT c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt,
+          c.iscompleted, c.accept, c.feedback, c.userid, c.score,
+          u.FullName as InstructorName, u.Email as InstructorEmail,
+          COUNT(m.ModuleID) as moduleCount
+         FROM Courses c
+         LEFT JOIN USERS u ON c.userid = u.UserID
+         LEFT JOIN Modules m ON c.CourseID = m.CourseID
+         WHERE c.accept = true AND c.iscompleted = false ${mainWhereClause}
+         GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.iscompleted, c.accept, c.feedback, c.userid, c.score, u.FullName, u.Email
+         ORDER BY c.CreatedAt DESC
+         LIMIT $1 OFFSET $2`,
+        mainParams
+      );
+      
+      let countResult;
+      if (useSearch) {
+        countResult = await pool.query(
+          `SELECT COUNT(*) as total FROM Courses c WHERE c.accept = true AND c.iscompleted = false AND c.Title LIKE $1`,
+          [searchParam]
+        );
+      } else {
+        countResult = await pool.query(
+          `SELECT COUNT(*) as total FROM Courses WHERE accept = true AND iscompleted = false`
+        );
+      }
+      
+      const courses = (coursesResult.rows || []).map(row => ({
+          ...row,
+          CourseID: row.courseid || row.CourseID,
+          Title: row.title || row.Title,
+          Description: row.description || row.Description,
+          Level: row.level || row.Level,
+          Thumbnail: row.thumbnail || row.Thumbnail,
+          CreatedAt: row.createdat || row.CreatedAt,
+          IsCompleted: row.iscompleted || false,
+          Accept: row.accept || false,
+          Feedback: row.feedback || '',
+          UserId: row.userid,
+          InstructorName: row.instructorname || row.InstructorName || '',
+          InstructorEmail: row.instructoremail || row.InstructorEmail || '',
+          moduleCount: parseInt(row.modulecount || row.moduleCount || 0)
+      }));
+      const total = parseInt(countResult.rows[0]?.total || 0);
+      
+      res.json({
+        courses: courses,
+        pagination: {
+          page,
+          size,
+          total,
+          totalPages: Math.ceil(total / size)
+        }
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        error: 'Failed to load pending courses: ' + error.message,
+        debug: process.env.NODE_ENV === 'development' ? error.message : undefined 
+      });
+    }
   }
 };
 
