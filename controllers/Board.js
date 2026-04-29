@@ -17,10 +17,19 @@ exports.getLeaderboard = async (req, res) => {
                 (SELECT COUNT(DISTINCT s.problem_id)
                  FROM Submissions s
                  WHERE s.UserID = u.UserID AND s.status = 'Accepted') as solved_problems,
-                -- Count completed courses (courses where user is enrolled)
-                (SELECT COUNT(DISTINCT e.CourseID)
-                 FROM Enrollments e
-                 WHERE e.UserID = u.UserID) as enrolled_courses
+                -- Count completed courses (courses where user has 100% progress)
+                (SELECT COUNT(DISTINCT c.CourseID)
+                 FROM Courses c
+                 WHERE EXISTS (
+                     SELECT 1 FROM Enrollments e WHERE e.CourseID = c.CourseID AND e.UserID = u.UserID
+                 )
+                 AND (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID) > 0
+                 AND (SELECT COUNT(*) FROM UserProgress up 
+                      JOIN Lessons l ON up.LessonID = l.LessonID 
+                      JOIN Modules m ON l.ModuleID = m.ModuleID 
+                      WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID AND up.Status = 'completed') 
+                 = (SELECT COUNT(*) FROM Lessons l JOIN Modules m ON l.ModuleID = m.ModuleID WHERE m.CourseID = c.CourseID)
+                ) as completed_courses
             FROM USERS u
             WHERE u.RoleID = 3
             ORDER BY u.score DESC, solved_problems DESC
@@ -38,7 +47,7 @@ exports.getLeaderboard = async (req, res) => {
             score: row.score || 0,
             title: row.title || 'Chưa có',
             solved_problems: parseInt(row.solved_problems) || 0,
-            completed_courses: parseInt(row.enrolled_courses) || 0
+            completed_courses: parseInt(row.completed_courses) || 0
         }));
 
         res.json({
