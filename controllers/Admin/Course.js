@@ -414,7 +414,7 @@ const CourseController = {
          LEFT JOIN Modules m ON c.CourseID = m.CourseID
          WHERE c.accept = true AND c.iscompleted = false ${mainWhereClause}
          GROUP BY c.CourseID, c.Title, c.Description, c.Level, c.Thumbnail, c.CreatedAt, c.iscompleted, c.accept, c.feedback, c.userid, c.score, u.FullName, u.Email
-         ORDER BY c.CreatedAt DESC
+         ORDER BY c.CreatedAt ASC
          LIMIT $1 OFFSET $2`,
         mainParams
       );
