@@ -26,7 +26,7 @@ exports.getLeaderboard = async (req, res) => {
                            (SELECT COUNT(*) FROM UserProgress up 
                             JOIN Lessons l ON up.LessonID = l.LessonID 
                             JOIN Modules m ON l.ModuleID = m.ModuleID 
-                            WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID AND up.Status = 'completed') as completedlessons
+                            WHERE m.CourseID = c.CourseID AND up.UserID = u.UserID) as completedlessons
                     FROM Enrollments e
                     JOIN Courses c ON e.CourseID = c.CourseID
                     WHERE e.UserID = u.UserID
@@ -39,7 +39,7 @@ exports.getLeaderboard = async (req, res) => {
                            (SELECT COUNT(*) FROM UserProgress up2 
                             JOIN Lessons l2 ON up2.LessonID = l2.LessonID 
                             JOIN Modules m2 ON l2.ModuleID = m2.ModuleID 
-                            WHERE m2.CourseID = c.CourseID AND up2.UserID = u.UserID AND up2.Status = 'completed') as completedlessons
+                            WHERE m2.CourseID = c.CourseID AND up2.UserID = u.UserID) as completedlessons
                     FROM Courses c
                     WHERE EXISTS (
                        SELECT 1 FROM UserProgress up 
