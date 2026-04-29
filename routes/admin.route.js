@@ -7,7 +7,6 @@ const moduleController = require('../controllers/Admin/Module');
 const quizController = require('../controllers/Admin/Quiz');
 const questionController = require('../controllers/Admin/Question');
 const answerController = require('../controllers/Admin/Answer');
-const updateRequestController = require('../controllers/CourseUpdateRequest');
 
 // Courses
 router.post('/courses', adminAuth.requireAdmin, courseController.createCourse);
@@ -83,11 +82,5 @@ router.post('/problems/:problemId/testcases/:tcid/duplicate', adminAuth.requireA
 
 // Course Builder - Full tree
 router.get('/course-builder/:courseId', adminAuth.requireAdmin, courseController.getCourseById);
-
-// Course Update Requests
-router.get('/update-requests', adminAuth.requireAdmin, updateRequestController.getAllUpdateRequests);
-router.get('/update-requests/:id', adminAuth.requireAdmin, updateRequestController.getUpdateRequestById);
-router.put('/update-requests/:id/approve', adminAuth.requireAdmin, updateRequestController.approveUpdateRequest);
-router.put('/update-requests/:id/reject', adminAuth.requireAdmin, updateRequestController.rejectUpdateRequest);
 
 module.exports = router;

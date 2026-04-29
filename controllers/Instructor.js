@@ -115,35 +115,6 @@ const InstructorController = {
       const { Title, OrderIndex, userId } = req.body;
       if (!Title) return res.status(400).json({ success: false, message: 'Title required' });
 
-      // Check if the course is published
-      const moduleResult = await pool.query(
-        'SELECT CourseID FROM Modules WHERE ModuleID = $1',
-        [moduleId]
-      );
-
-      if (!moduleResult.rows.length) {
-        return res.status(404).json({ success: false, message: 'Module not found' });
-      }
-
-      const courseId = moduleResult.rows[0].courseid;
-
-      const courseResult = await pool.query(
-        'SELECT Accept, IsCompleted FROM Courses WHERE CourseID = $1',
-        [courseId]
-      );
-
-      const course = courseResult.rows[0];
-
-      // If course is published, require update request
-      if (course && course.accept && course.iscompleted) {
-        return res.status(403).json({
-          success: false,
-          message: 'Khóa học đã xuất bản. Vui lòng gửi yêu cầu cập nhật để Admin phê duyệt.',
-          requiresApproval: true,
-          courseId: courseId
-        });
-      }
-
       await pool.query(
         'UPDATE Modules SET Title = $1, OrderIndex = $2 WHERE ModuleID = $3',
         [Title.trim(), parseInt(OrderIndex || 0), moduleId]
@@ -244,48 +215,8 @@ const InstructorController = {
 
       if (!Title || !Type) return res.status(400).json({ success: false, message: 'Title and Type required' });
 
-      // Check if the course is published
-      const lessonResult = await pool.query(
-        'SELECT ModuleID FROM Lessons WHERE LessonID = $1',
-        [lessonId]
-      );
-
-      if (!lessonResult.rows.length) {
-        return res.status(404).json({ success: false, message: 'Lesson not found' });
-      }
-
-      const moduleId = lessonResult.rows[0].moduleid;
-
-      const moduleResult = await pool.query(
-        'SELECT CourseID FROM Modules WHERE ModuleID = $1',
-        [moduleId]
-      );
-
-      if (!moduleResult.rows.length) {
-        return res.status(404).json({ success: false, message: 'Module not found' });
-      }
-
-      const courseId = moduleResult.rows[0].courseid;
-
-      const courseResult = await pool.query(
-        'SELECT Accept, IsCompleted FROM Courses WHERE CourseID = $1',
-        [courseId]
-      );
-
-      const course = courseResult.rows[0];
-
-      // If course is published, require update request
-      if (course && course.accept && course.iscompleted) {
-        return res.status(403).json({
-          success: false,
-          message: 'Khóa học đã xuất bản. Vui lòng gửi yêu cầu cập nhật để Admin phê duyệt.',
-          requiresApproval: true,
-          courseId: courseId
-        });
-      }
-
       await pool.query(
-        `UPDATE Lessons
+        `UPDATE Lessons 
          SET Title=$1, Type=$2, ContentUrl=$3, ContentHtml=$4, Duration=$5, OrderIndex=$6, "describe"=$7, "summary"=$8, score=$9
          WHERE LessonID=$10`,
         [Title, Type, ContentUrl || '', ContentHtml || '', parseInt(Duration || 0), parseInt(OrderIndex || 0), Describe || '', Summary || '', score !== undefined ? parseInt(score) : 0, lessonId]

@@ -5,7 +5,6 @@ const beCtrl = require('../controllers/BeInstructor');
 const quizCtrl = require('../controllers/Admin/Quiz');
 const questionCtrl = require('../controllers/Admin/Question');
 const answerCtrl = require('../controllers/Admin/Answer');
-const updateRequestCtrl = require('../controllers/CourseUpdateRequest');
 
 // Course tree + publish
 router.get('/course/:courseId', ctrl.getCourseTree);
@@ -42,9 +41,5 @@ router.delete('/answers/:id', answerCtrl.deleteAnswer);
 
 // Become Instructor
 router.put('/become', beCtrl.becomeInstructor);
-
-// Course Update Requests
-router.post('/update-requests', updateRequestCtrl.submitUpdateRequest);
-router.get('/update-requests/course/:courseId', updateRequestCtrl.getUpdateRequestsByCourse);
 
 module.exports = router;
