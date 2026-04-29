@@ -1,26 +1,6 @@
 const pool = require('../db');
 
 const InstructorController = {
-  // Helper: Check if course is published and unpublish if needed
-  async checkAndUnpublishIfPublished(courseId, pool) {
-    const courseResult = await pool.query(
-      'SELECT iscompleted, accept FROM Courses WHERE courseid = $1',
-      [courseId]
-    );
-    if (courseResult.rows.length === 0) return false;
-    
-    const course = courseResult.rows[0];
-    // If course is published (iscompleted=true AND accept=true), unpublish and submit for review
-    if (course.iscompleted && course.accept) {
-      await pool.query(
-        'UPDATE Courses SET iscompleted = false, accept = true, feedback = \'\' WHERE courseid = $1',
-        [courseId]
-      );
-      return true; // Course was unpublished
-    }
-    return false;
-  },
-
   // GET /api/instructor/course/:courseId?userId=X
   // Load full course tree with ownership check
   getCourseTree: async (req, res) => {
@@ -107,9 +87,6 @@ const InstructorController = {
       const check = await pool.query('SELECT 1 FROM Courses WHERE courseid = $1 AND userid = $2', [parseInt(CourseID), parseInt(userId)]);
       if (!check.rows.length) return res.status(403).json({ success: false, message: 'Không có quyền' });
 
-      // Check if course is published and unpublish if needed
-      const wasPublished = await InstructorController.checkAndUnpublishIfPublished(parseInt(CourseID), pool);
-
       const maxOrder = await pool.query(
         'SELECT COALESCE(MAX(OrderIndex), 0) + 1 as nextorder FROM Modules WHERE CourseID = $1',
         [parseInt(CourseID)]
@@ -123,8 +100,7 @@ const InstructorController = {
       const m = result.rows[0];
       res.status(201).json({
         success: true,
-        module: { ModuleID: m.moduleid, Title: m.title, OrderIndex: m.orderindex },
-        wasUnpublished: wasPublished
+        module: { ModuleID: m.moduleid, Title: m.title, OrderIndex: m.orderindex }
       });
     } catch (err) {
       console.error('createModule error:', err);
@@ -138,13 +114,6 @@ const InstructorController = {
       const moduleId = parseInt(req.params.id);
       const { Title, OrderIndex, userId } = req.body;
       if (!Title) return res.status(400).json({ success: false, message: 'Title required' });
-
-      // Get CourseID to check if course is published
-      const moduleResult = await pool.query('SELECT CourseID FROM Modules WHERE ModuleID = $1', [moduleId]);
-      if (moduleResult.rows.length > 0) {
-        const courseId = moduleResult.rows[0].courseid;
-        await InstructorController.checkAndUnpublishIfPublished(courseId, pool);
-      }
 
       await pool.query(
         'UPDATE Modules SET Title = $1, OrderIndex = $2 WHERE ModuleID = $3',
@@ -168,13 +137,6 @@ const InstructorController = {
         return res.status(400).json({ success: false, message: 'Xóa hết lesson trong module trước' });
       }
 
-      // Get CourseID to check if course is published
-      const moduleResult = await pool.query('SELECT CourseID FROM Modules WHERE ModuleID = $1', [moduleId]);
-      if (moduleResult.rows.length > 0) {
-        const courseId = moduleResult.rows[0].courseid;
-        await InstructorController.checkAndUnpublishIfPublished(courseId, pool);
-      }
-
       await pool.query('DELETE FROM Modules WHERE ModuleID = $1', [moduleId]);
       res.json({ success: true, message: 'Module deleted' });
     } catch (err) {
@@ -193,13 +155,6 @@ const InstructorController = {
 
       if (!['video', 'reading', 'quiz'].includes(Type)) {
         return res.status(400).json({ success: false, message: 'Invalid lesson type. Must be video, reading, or quiz' });
-      }
-
-      // Get CourseID to check if course is published
-      const moduleResult = await pool.query('SELECT CourseID FROM Modules WHERE ModuleID = $1', [parseInt(ModuleID)]);
-      if (moduleResult.rows.length > 0) {
-        const courseId = moduleResult.rows[0].courseid;
-        await InstructorController.checkAndUnpublishIfPublished(courseId, pool);
       }
 
       const maxOrder = await pool.query(
@@ -260,17 +215,6 @@ const InstructorController = {
 
       if (!Title || !Type) return res.status(400).json({ success: false, message: 'Title and Type required' });
 
-      // Get CourseID to check if course is published
-      const lessonResult = await pool.query('SELECT ModuleID FROM Lessons WHERE LessonID = $1', [lessonId]);
-      if (lessonResult.rows.length > 0) {
-        const moduleId = lessonResult.rows[0].moduleid;
-        const moduleResult = await pool.query('SELECT CourseID FROM Modules WHERE ModuleID = $1', [moduleId]);
-        if (moduleResult.rows.length > 0) {
-          const courseId = moduleResult.rows[0].courseid;
-          await InstructorController.checkAndUnpublishIfPublished(courseId, pool);
-        }
-      }
-
       await pool.query(
         `UPDATE Lessons 
          SET Title=$1, Type=$2, ContentUrl=$3, ContentHtml=$4, Duration=$5, OrderIndex=$6, "describe"=$7, "summary"=$8, score=$9
@@ -288,17 +232,6 @@ const InstructorController = {
   deleteLesson: async (req, res) => {
     try {
       const lessonId = parseInt(req.params.id);
-
-      // Get CourseID to check if course is published
-      const lessonResult = await pool.query('SELECT ModuleID FROM Lessons WHERE LessonID = $1', [lessonId]);
-      if (lessonResult.rows.length > 0) {
-        const moduleId = lessonResult.rows[0].moduleid;
-        const moduleResult = await pool.query('SELECT CourseID FROM Modules WHERE ModuleID = $1', [moduleId]);
-        if (moduleResult.rows.length > 0) {
-          const courseId = moduleResult.rows[0].courseid;
-          await InstructorController.checkAndUnpublishIfPublished(courseId, pool);
-        }
-      }
 
       // Cascade: Answers -> Questions -> Quizzes -> Lesson
       await pool.query(`DELETE FROM Answers WHERE QuestionID IN (SELECT QuestionID FROM Questions WHERE QuizID IN (SELECT QuizID FROM Quizzes WHERE LessonID = $1))`, [lessonId]);
@@ -319,7 +252,8 @@ const InstructorController = {
       const courseId = parseInt(req.params.courseId);
       const { userId } = req.body;
 
-      const check = await pool.query('SELECT 1 FROM Courses WHERE courseid=$1 AND userid=$2', [courseId, parseInt(userId)]);
+      // Verify ownership
+      const check = await pool.query('SELECT 1 FROM Courses WHERE courseid = $1 AND userid = $2', [courseId, parseInt(userId)]);
       if (!check.rows.length) return res.status(403).json({ success: false, message: 'Không có quyền' });
 
       // Set accept=true, iscompleted stays false → pending for admin review
@@ -329,7 +263,37 @@ const InstructorController = {
       console.error('submitForReview error:', err);
       res.status(500).json({ success: false, message: err.message });
     }
-  }
+  },
+
+  // PUT /api/instructor/course/:courseId/send-update
+  sendUpdate: async (req, res) => {
+    try {
+      const courseId = parseInt(req.params.courseId);
+      const { userId } = req.body;
+
+      // Verify ownership
+      const check = await pool.query('SELECT 1 FROM Courses WHERE courseid = $1 AND userid = $2', [courseId, parseInt(userId)]);
+      if (!check.rows.length) return res.status(403).json({ success: false, message: 'Không có quyền' });
+
+      // Check if course is published
+      const courseCheck = await pool.query('SELECT iscompleted, accept FROM Courses WHERE courseid = $1', [courseId]);
+      if (courseCheck.rows.length === 0) {
+        return res.status(404).json({ success: false, message: 'Khóa học không tồn tại' });
+      }
+
+      const course = courseCheck.rows[0];
+      if (!course.iscompleted || !course.accept) {
+        return res.status(400).json({ success: false, message: 'Chỉ có thể gửi bản cập nhật cho khóa học đã xuất bản' });
+      }
+
+      // Unpublish and set feedback to "Bản cập nhật"
+      await pool.query('UPDATE Courses SET iscompleted=false, accept=true, feedback=\'Bản cập nhật\' WHERE courseid=$1', [courseId]);
+      res.json({ success: true, message: 'Đã gửi bản cập nhật! Vui lòng chờ Admin phê duyệt.' });
+    } catch (err) {
+      console.error('sendUpdate error:', err);
+      res.status(500).json({ success: false, message: err.message });
+    }
+  },
 };
 
 module.exports = InstructorController;
